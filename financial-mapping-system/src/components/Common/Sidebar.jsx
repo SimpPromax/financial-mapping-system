@@ -1,61 +1,60 @@
 // src/components/Sidebar.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PieChart, List, BarChart3, LogOut, Download, X, FileText, Eye } from 'lucide-react';
+import {
+  PieChart,
+  List,
+  BarChart3,
+  LogOut,
+  Download,
+  X,
+  FileText,
+  Eye,
+} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
   const { logout, user } = useAuth();
+  const [financialExpanded, setFinancialExpanded] = useState(false);
   const [templateExpanded, setTemplateExpanded] = useState(false);
-  const [tooltip, setTooltip] = useState({
-    show: false,
-    text: '',
-    x: 0,
-    y: 0,
-  });
+  const [tooltip, setTooltip] = useState({ show: false, text: '', x: 0, y: 0 });
 
   const tooltipRef = useRef(null);
 
-  // ✅ Stable boolean derived from location — no function!
-  const isSubPathActive =
+  // Determine active paths for submenus
+  const isTemplateActive =
     location.pathname.startsWith('/excelinitialiser') ||
     location.pathname.startsWith('/viewsaveddata');
 
-  // Auto-expand submenu when on relevant routes
-  useEffect(() => {
-    if (isSubPathActive) {
-      setTemplateExpanded(true);
-    }
-  }, [isSubPathActive]);
+  const isFinancialActive =
+    location.pathname.startsWith('/chart-of-accounts') ||
+    location.pathname.startsWith('/mapping');
 
-  // Show tooltip near cursor but within viewport bounds
+  // Auto-expand submenus when active
+  useEffect(() => {
+    setTemplateExpanded(isTemplateActive);
+  }, [isTemplateActive]);
+
+  useEffect(() => {
+    setFinancialExpanded(isFinancialActive);
+  }, [isFinancialActive]);
+
+  // Tooltip handlers
   const showTooltip = (text, event) => {
     const padding = 12;
     const tooltipWidth = 280;
     const tooltipHeight = 48;
-
     let x = event.clientX + 12;
     let y = event.clientY + 12;
 
-    if (x + tooltipWidth > window.innerWidth) {
-      x = window.innerWidth - tooltipWidth - padding;
-    }
-    if (y + tooltipHeight > window.innerHeight) {
-      y = window.innerHeight - tooltipHeight - padding;
-    }
+    if (x + tooltipWidth > window.innerWidth) x = window.innerWidth - tooltipWidth - padding;
+    if (y + tooltipHeight > window.innerHeight) y = window.innerHeight - tooltipHeight - padding;
 
     setTooltip({ show: true, text, x, y });
   };
 
-  const hideTooltip = () => {
-    setTooltip((prev) => ({ ...prev, show: false }));
-  };
-
-  const toggleTemplateMenu = () => {
-    setTemplateExpanded((prev) => !prev);
-    hideTooltip();
-  };
+  const hideTooltip = () => setTooltip((prev) => ({ ...prev, show: false }));
 
   return (
     <div>
@@ -67,17 +66,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         />
       )}
 
-      {/* Global Tooltip */}
-      {/* Tooltip — rendered at root level with high z-index */}
+      {/* Tooltip */}
       {tooltip.show && (
         <div
           ref={tooltipRef}
           className="fixed bg-gray-900 text-white text-sm px-3 py-2 rounded-lg shadow-lg border border-gray-700 max-w-xs pointer-events-none"
-          style={{
-            left: `${tooltip.x}px`,
-            top: `${tooltip.y}px`,
-            zIndex: 1000,
-          }}
+          style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px`, zIndex: 1000 }}
         >
           {tooltip.text}
           <div className="absolute -left-1 top-1/2 w-2 h-2 bg-gray-900 transform -translate-y-1/2 rotate-45" />
@@ -86,22 +80,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
       {/* Sidebar */}
       <div
-        className={`
-          fixed top-0 left-0 z-50 bg-white border-r border-gray-200
-          h-screen w-80 flex flex-col
-          transform transition-transform duration-300
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          lg:translate-x-0
-        `}
+        className={`fixed top-0 left-0 z-50 bg-white border-r border-gray-200 h-screen w-80 flex flex-col
+        transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 lg:justify-start">
           <h2 className="text-xl font-bold text-gray-900">Financial Mapping</h2>
-          <button
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close sidebar"
-          >
+          <button className="lg:hidden" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar">
             <X size={22} />
           </button>
         </div>
@@ -122,18 +107,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`group flex items-center gap-3 px-6 py-3 mx-2 rounded-lg relative overflow-hidden transition-all duration-300 ${
-                  isActive
-                    ? 'text-white font-semibold'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
+                className={`group flex items-center gap-3 px-6 py-3 mx-2 rounded-lg relative overflow-hidden transition-all duration-300 ${isActive ? 'text-white font-semibold' : 'text-gray-600 hover:text-gray-800'
+                  }`}
               >
                 <span
-                  className={`absolute inset-y-0 left-2 right-2 rounded-lg transition-all duration-300 ${
-                    isActive
-                      ? 'bg-blue-600 scale-100'
-                      : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
-                  }`}
+                  className={`absolute inset-y-0 left-2 right-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-blue-600 scale-100' : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
+                    }`}
                 />
                 <IconComp
                   size={20}
@@ -144,62 +123,26 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             );
           })}
 
-          {/* Prepare Template Section */}
+          {/* Prepare Template Submenu */}
           <div className="relative">
             <button
-              onClick={toggleTemplateMenu}
-              className={`group flex items-center justify-between w-full px-6 py-3 mx-2 rounded-lg relative overflow-hidden transition-all duration-300 ${
-                isSubPathActive
-                  ? 'text-white font-semibold'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
+              onClick={() => setTemplateExpanded(!templateExpanded)}
+              className={`group flex items-center justify-between w-full px-6 py-3 mx-2 rounded-lg relative overflow-hidden transition-all duration-300 ${isTemplateActive ? 'text-white font-semibold' : 'text-gray-600 hover:text-gray-800'
+                }`}
               aria-expanded={templateExpanded}
-              aria-haspopup="true"
-              aria-controls="prepare-template-submenu"
             >
               <span className="flex items-center gap-3 flex-1">
                 <span
-                  className={`absolute inset-y-0 left-2 right-2 rounded-lg transition-all duration-300 ${
-                    isSubPathActive
-                      ? 'bg-blue-600 scale-100'
-                      : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
-                  }`}
+                  className={`absolute inset-y-0 left-2 right-2 rounded-lg transition-all duration-300 ${isTemplateActive ? 'bg-blue-600 scale-100' : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
+                    }`}
                 />
-                <FileText
-                  size={20}
-                  className="relative z-10 transition-transform duration-200 group-hover:scale-110"
-                />
+                <FileText size={20} className="relative z-10 transition-transform duration-200 group-hover:scale-110" />
                 <span className="relative z-10">Prepare Template</span>
               </span>
-
-              <span className="relative z-10 text-gray-500">
-                {templateExpanded ? (
-                  <X size={16} />
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="transition-transform duration-200"
-                  >
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                )}
-              </span>
+              <span className="relative z-10">{templateExpanded ? <X size={16} /> : <X size={16} />}</span>
             </button>
-
-            {/* Submenu */}
             {templateExpanded && (
-              <div
-                id="prepare-template-submenu"
-                className="ml-6 mt-1 space-y-1 border-l border-gray-200 pl-3"
-              >
+              <div className="ml-6 mt-1 space-y-1 border-l border-gray-200 pl-3">
                 <Link
                   to="/excelinitialiser"
                   onClick={() => {
@@ -208,24 +151,17 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     hideTooltip();
                   }}
                   onMouseEnter={(e) =>
-                    showTooltip(
-                      'Sets up a clean template with the required column structure',
-                      e
-                    )
+                    showTooltip('Sets up a clean template with the required column structure', e)
                   }
                   onMouseLeave={hideTooltip}
-                  className={`block px-4 py-2 rounded hover:bg-gray-100 ${
-                    location.pathname.startsWith('/excelinitialiser')
-                      ? 'font-semibold text-blue-600'
-                      : 'text-gray-700'
-                  }`}
+                  className={`block px-4 py-2 rounded hover:bg-gray-100 ${location.pathname.startsWith('/excelinitialiser') ? 'font-semibold text-blue-600' : 'text-gray-700'
+                    }`}
                 >
                   <div className="flex items-center gap-2">
                     <FileText size={16} />
                     <span>Set Up New Data</span>
                   </div>
                 </Link>
-
                 <Link
                   to="/viewsaveddata"
                   onClick={() => {
@@ -237,15 +173,73 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     showTooltip('View previously saved template configurations', e)
                   }
                   onMouseLeave={hideTooltip}
-                  className={`block px-4 py-2 rounded hover:bg-gray-100 ${
-                    location.pathname.startsWith('/viewsaveddata')
-                      ? 'font-semibold text-blue-600'
-                      : 'text-gray-700'
-                  }`}
+                  className={`block px-4 py-2 rounded hover:bg-gray-100 ${location.pathname.startsWith('/viewsaveddata') ? 'font-semibold text-blue-600' : 'text-gray-700'
+                    }`}
                 >
                   <div className="flex items-center gap-2">
                     <Eye size={16} />
                     <span>View Saved Data</span>
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Financial Mapping Submenu */}
+          <div className="relative">
+            <button
+              onClick={() => setFinancialExpanded(!financialExpanded)}
+              className={`group flex items-center justify-between w-full px-6 py-3 mx-2 rounded-lg relative overflow-hidden transition-all duration-300 ${isFinancialActive ? 'text-white font-semibold' : 'text-gray-600 hover:text-gray-800'
+                }`}
+              aria-expanded={financialExpanded}
+            >
+              <span className="flex items-center gap-3 flex-1">
+                <span
+                  className={`absolute inset-y-0 left-2 right-2 rounded-lg transition-all duration-300 ${isFinancialActive ? 'bg-blue-600 scale-100' : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
+                    }`}
+                />
+                <FileText size={20} className="relative z-10 transition-transform duration-200 group-hover:scale-110" />
+                <span className="relative z-10">Financial Mapping</span>
+              </span>
+              <span className="relative z-10">{financialExpanded ? <X size={16} /> : <X size={16} />}</span>
+            </button>
+            {financialExpanded && (
+              <div className="ml-6 mt-1 space-y-1 border-l border-gray-200 pl-3">
+                <Link
+                  to="/chart-of-accounts"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    setFinancialExpanded(false);
+                    hideTooltip();
+                  }}
+                  onMouseEnter={(e) =>
+                    showTooltip('Initialize Chart of Accounts (COA) for mapping', e)
+                  }
+                  onMouseLeave={hideTooltip}
+                  className={`block px-4 py-2 rounded hover:bg-gray-100 ${location.pathname.startsWith('/chart-of-accounts') ? 'font-semibold text-blue-600' : 'text-gray-700'
+                    }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText size={16} />
+                    <span>Chart of Accounts</span>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/mapping"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    setFinancialExpanded(false);
+                    hideTooltip();
+                  }}
+                  onMouseEnter={(e) => showTooltip('Map Excel cells to COA', e)}
+                  onMouseLeave={hideTooltip}
+                  className={`block px-4 py-2 rounded hover:bg-gray-100 ${location.pathname.startsWith('/mapping') ? 'font-semibold text-blue-600' : 'text-gray-700'
+                    }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText size={16} />
+                    <span>Mapping</span>
                   </div>
                 </Link>
               </div>
@@ -260,12 +254,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="min-w-0">
-              <div className="font-semibold text-gray-900 truncate">
-                {user?.name || 'User'}
-              </div>
-              <div className="text-xs text-gray-500 truncate">
-                {user?.email || ''}
-              </div>
+              <div className="font-semibold text-gray-900 truncate">{user?.name || 'User'}</div>
+              <div className="text-xs text-gray-500 truncate">{user?.email || ''}</div>
             </div>
           </div>
           <button

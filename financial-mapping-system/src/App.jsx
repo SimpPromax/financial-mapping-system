@@ -7,28 +7,39 @@ import NotFound from './pages/NotFound/NotFound';
 import Dashboard from './components/Dashboard/Dashboard';
 import TransactionList from './components/Transactions/TransactionList';
 import FinancialCharts from './components/Charts/FinancialCharts';
-import ExcelDownload from './pages/ExcelDownload/ExcelDownload'; // Add this import
-import ExcelInitialiser from './pages/ExcelFormInitialisation/ExcelcelInitialiser';//add this import
+import ExcelDownload from './pages/ExcelDownload/ExcelDownload';
+import ExcelInitialiser from './pages/ExcelFormInitialisation/ExcelcelInitialiser';
 import ViewSavedData from './pages/ExcelFormInitialisation/ViewSavedData';
+import ChartOfAccounts from './pages/MappingPart/ChartOfAccounts';
+import Mapping from './pages/MappingPart/Mapping';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }>
+
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="transactions" element={<TransactionList />} />
           <Route path="analytics" element={<FinancialCharts />} />
-          <Route path="excel-download" element={<ExcelDownload />} /> {/* Add this route */}
-          <Route path="excelinitialiser" element={<ExcelInitialiser />} /> {/* Add this route */}
-          <Route path="viewsaveddata" element={<ViewSavedData />} /> {/* Add this route */}
+          <Route path="excel-download" element={<ExcelDownload />} />
+          <Route path="excelinitialiser" element={<ExcelInitialiser />} />
+          <Route path="viewsaveddata" element={<ViewSavedData />} />
+
+          {/* New Routes */}
+          <Route path="chart-of-accounts" element={<ChartOfAccounts />} />
+          <Route path="mapping" element={<Mapping />} />
         </Route>
+
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
