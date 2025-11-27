@@ -10,7 +10,7 @@ const Header = ({ setSidebarOpen }) => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           {/* Mobile toggle button */}
-          <button 
+          <button
             className="lg:hidden p-2 rounded hover:bg-gray-100"
             onClick={() => setSidebarOpen(true)}
           >

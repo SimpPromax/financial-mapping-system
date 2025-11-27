@@ -10,6 +10,7 @@ import {
   X,
   FileText,
   Eye,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -139,7 +140,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 <FileText size={20} className="relative z-10 transition-transform duration-200 group-hover:scale-110" />
                 <span className="relative z-10">Prepare Template</span>
               </span>
-              <span className="relative z-10">{templateExpanded ? <X size={16} /> : <X size={16} />}</span>
+              <span className="relative z-10">{templateExpanded ? <X size={16} /> : <ChevronDown size={16} />}</span>
             </button>
             {templateExpanded && (
               <div className="ml-6 mt-1 space-y-1 border-l border-gray-200 pl-3">
@@ -147,7 +148,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   to="/excelinitialiser"
                   onClick={() => {
                     setSidebarOpen(false);
-                    setTemplateExpanded(false);
                     hideTooltip();
                   }}
                   onMouseEnter={(e) =>
@@ -166,7 +166,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   to="/viewsaveddata"
                   onClick={() => {
                     setSidebarOpen(false);
-                    setTemplateExpanded(false);
                     hideTooltip();
                   }}
                   onMouseEnter={(e) =>
@@ -201,7 +200,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 <FileText size={20} className="relative z-10 transition-transform duration-200 group-hover:scale-110" />
                 <span className="relative z-10">Financial Mapping</span>
               </span>
-              <span className="relative z-10">{financialExpanded ? <X size={16} /> : <X size={16} />}</span>
+              <span className="relative z-10">{financialExpanded ? <X size={16} /> : <ChevronDown size={16} />}</span>
             </button>
             {financialExpanded && (
               <div className="ml-6 mt-1 space-y-1 border-l border-gray-200 pl-3">
@@ -209,7 +208,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   to="/chart-of-accounts"
                   onClick={() => {
                     setSidebarOpen(false);
-                    setFinancialExpanded(false);
                     hideTooltip();
                   }}
                   onMouseEnter={(e) =>
@@ -229,7 +227,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   to="/mapping"
                   onClick={() => {
                     setSidebarOpen(false);
-                    setFinancialExpanded(false);
                     hideTooltip();
                   }}
                   onMouseEnter={(e) => showTooltip('Map Excel cells to COA', e)}
