@@ -17,13 +17,41 @@ import { useAuth } from '../../hooks/useAuth';
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
   const { logout, user } = useAuth();
+
   const [financialExpanded, setFinancialExpanded] = useState(false);
   const [templateExpanded, setTemplateExpanded] = useState(false);
   const [tooltip, setTooltip] = useState({ show: false, text: '', x: 0, y: 0 });
+  const [unsavedSheetsCount, setUnsavedSheetsCount] = useState(0);
 
   const tooltipRef = useRef(null);
 
-  // Determine active paths for submenus
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const unsavedCount = localStorage.getItem('unsavedSheetsCount');
+      setUnsavedSheetsCount(unsavedCount ? parseInt(unsavedCount, 10) : 0);
+    };
+
+    const handleUnsavedChanges = (event) => {
+      // Expect custom event: { detail: { count: number } }
+      if (event?.detail?.count !== undefined) {
+        setUnsavedSheetsCount(event.detail.count);
+      }
+    };
+
+    handleStorageChange();
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('unsavedSheetsChanged', handleUnsavedChanges);
+
+    const interval = setInterval(handleStorageChange, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('unsavedSheetsChanged', handleUnsavedChanges);
+      clearInterval(interval);
+    };
+  }, []);
+
   const isTemplateActive =
     location.pathname.startsWith('/excelinitialiser') ||
     location.pathname.startsWith('/viewsaveddata');
@@ -32,7 +60,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     location.pathname.startsWith('/chart-of-accounts') ||
     location.pathname.startsWith('/mapping');
 
-  // Auto-expand submenus when active
   useEffect(() => {
     setTemplateExpanded(isTemplateActive);
   }, [isTemplateActive]);
@@ -41,7 +68,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     setFinancialExpanded(isFinancialActive);
   }, [isFinancialActive]);
 
-  // Tooltip handlers
   const showTooltip = (text, event) => {
     const padding = 12;
     const tooltipWidth = 280;
@@ -57,9 +83,25 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   const hideTooltip = () => setTooltip((prev) => ({ ...prev, show: false }));
 
+  // Reusable notification dot components (Tailwind-only)
+  const LargeNotifyDot = () => (
+    <div className="relative ml-3 flex items-center">
+      <div className="absolute -inset-1 rounded-full bg-red-400 opacity-60 animate-pulse blur-sm" />
+      <div className="absolute -inset-1 rounded-full bg-red-500 animate-ping" />
+      <div className="relative h-3 w-3 rounded-full bg-red-600 border border-white shadow-md" />
+    </div>
+  );
+
+  const SmallNotifyDot = () => (
+    <div className="relative ml-auto flex items-center">
+      <div className="absolute -inset-1 rounded-full bg-red-400 opacity-60 animate-pulse blur-[2px]" />
+      <div className="absolute -inset-1 rounded-full bg-red-500 animate-ping" />
+      <div className="relative h-2 w-2 rounded-full bg-red-600 border border-white shadow-sm" />
+    </div>
+  );
+
   return (
     <div>
-      {/* Mobile Backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/30 z-40 lg:hidden"
@@ -67,7 +109,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         />
       )}
 
-      {/* Tooltip */}
       {tooltip.show && (
         <div
           ref={tooltipRef}
@@ -79,12 +120,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         </div>
       )}
 
-      {/* Sidebar */}
       <div
-        className={`fixed top-0 left-0 z-50 bg-white border-r border-gray-200 h-screen w-80 flex flex-col
-        transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+        className={`fixed top-0 left-0 z-50 bg-white border-r border-gray-200 h-screen w-80 flex flex-col transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0`}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 lg:justify-start">
           <h2 className="text-xl font-bold text-gray-900">Financial Mapping</h2>
           <button className="lg:hidden" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar">
@@ -92,9 +131,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 py-4 space-y-1">
-          {/* Main Menu Items */}
+        <nav className="flex-1 py-4 space-y-1 overflow-y-auto">
           {[
             { path: '/dashboard', label: 'Dashboard', icon: PieChart },
             { path: '/transactions', label: 'Transactions', icon: List },
@@ -124,7 +161,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             );
           })}
 
-          {/* Prepare Template Submenu */}
           <div className="relative">
             <button
               onClick={() => setTemplateExpanded(!templateExpanded)}
@@ -139,9 +175,15 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 />
                 <FileText size={20} className="relative z-10 transition-transform duration-200 group-hover:scale-110" />
                 <span className="relative z-10">Prepare Template</span>
+
+                {unsavedSheetsCount > 0 && <LargeNotifyDot />}
               </span>
-              <span className="relative z-10">{templateExpanded ? <X size={16} /> : <ChevronDown size={16} />}</span>
+
+              <span className="relative z-10">
+                {templateExpanded ? <X size={16} /> : <ChevronDown size={16} />}
+              </span>
             </button>
+
             {templateExpanded && (
               <div className="ml-6 mt-1 space-y-1 border-l border-gray-200 pl-3">
                 <Link
@@ -154,23 +196,23 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     showTooltip('Sets up a clean template with the required column structure', e)
                   }
                   onMouseLeave={hideTooltip}
-                  className={`block px-4 py-2 rounded hover:bg-gray-100 ${location.pathname.startsWith('/excelinitialiser') ? 'font-semibold text-blue-600' : 'text-gray-700'
+                  className={`block px-4 py-2 rounded hover:bg-gray-100 relative ${location.pathname.startsWith('/excelinitialiser') ? 'font-semibold text-blue-600' : 'text-gray-700'
                     }`}
                 >
                   <div className="flex items-center gap-2">
                     <FileText size={16} />
                     <span>Set Up New Data</span>
+                    {unsavedSheetsCount > 0 && <SmallNotifyDot />}
                   </div>
                 </Link>
+
                 <Link
                   to="/viewsaveddata"
                   onClick={() => {
                     setSidebarOpen(false);
                     hideTooltip();
                   }}
-                  onMouseEnter={(e) =>
-                    showTooltip('View previously saved template configurations', e)
-                  }
+                  onMouseEnter={(e) => showTooltip('View previously saved template configurations', e)}
                   onMouseLeave={hideTooltip}
                   className={`block px-4 py-2 rounded hover:bg-gray-100 ${location.pathname.startsWith('/viewsaveddata') ? 'font-semibold text-blue-600' : 'text-gray-700'
                     }`}
@@ -184,7 +226,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             )}
           </div>
 
-          {/* Financial Mapping Submenu */}
           <div className="relative">
             <button
               onClick={() => setFinancialExpanded(!financialExpanded)}
@@ -200,8 +241,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 <FileText size={20} className="relative z-10 transition-transform duration-200 group-hover:scale-110" />
                 <span className="relative z-10">Financial Mapping</span>
               </span>
-              <span className="relative z-10">{financialExpanded ? <X size={16} /> : <ChevronDown size={16} />}</span>
+
+              <span className="relative z-10">
+                {financialExpanded ? <X size={16} /> : <ChevronDown size={16} />}
+              </span>
             </button>
+
             {financialExpanded && (
               <div className="ml-6 mt-1 space-y-1 border-l border-gray-200 pl-3">
                 <Link
@@ -210,9 +255,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     setSidebarOpen(false);
                     hideTooltip();
                   }}
-                  onMouseEnter={(e) =>
-                    showTooltip('Initialize Chart of Accounts (COA) for mapping', e)
-                  }
+                  onMouseEnter={(e) => showTooltip('Initialize Chart of Accounts (COA) for mapping', e)}
                   onMouseLeave={hideTooltip}
                   className={`block px-4 py-2 rounded hover:bg-gray-100 ${location.pathname.startsWith('/chart-of-accounts') ? 'font-semibold text-blue-600' : 'text-gray-700'
                     }`}
@@ -244,17 +287,17 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           </div>
         </nav>
 
-        {/* User Section */}
         <div className="p-6 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
+              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div className="min-w-0">
               <div className="font-semibold text-gray-900 truncate">{user?.name || 'User'}</div>
               <div className="text-xs text-gray-500 truncate">{user?.email || ''}</div>
             </div>
           </div>
+
           <button
             onClick={logout}
             className="flex items-center gap-2 w-full px-4 py-2 rounded-lg bg-white border hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition"

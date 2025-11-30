@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeftIcon, RefreshCwIcon, FileTextIcon } from 'lucide-react';
+import { RefreshCwIcon, FileTextIcon, SearchIcon } from 'lucide-react';
 
 const ViewSavedData = () => {
   const [sheets, setSheets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(0);
-  const sheetsPerPage = 6;
+  const [currentPage, setCurrentPage] = useState(1); // 1-indexed
+  const sheetsPerPage = 4;
 
   const navigate = useNavigate();
 
@@ -30,7 +30,7 @@ const ViewSavedData = () => {
         setError('Invalid data format received from server');
       }
     } catch (err) {
-      setError('Failed to load saved data. Please try again.', err);
+      setError('Failed to load saved data. Please try again.',err);
       setSheets([]);
     } finally {
       setLoading(false);
@@ -44,7 +44,6 @@ const ViewSavedData = () => {
   const getDisplayElements = (sheet) => {
     let elements = [...(sheet.excelElements || [])];
 
-    // Search filter only
     if (search.trim()) {
       const q = search.toLowerCase();
       elements = elements.filter(el =>
@@ -56,189 +55,193 @@ const ViewSavedData = () => {
     return elements;
   };
 
-  // Calculate pagination values
   const totalPages = Math.ceil(sheets.length / sheetsPerPage);
-  const startIndex = currentPage * sheetsPerPage;
-  const endIndex = startIndex + sheetsPerPage;
-  const currentSheets = sheets.slice(startIndex, endIndex);
+  const startIndex = (currentPage - 1) * sheetsPerPage;
+  const currentSheets = sheets.slice(startIndex, startIndex + sheetsPerPage);
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading saved data...</p>
+      <div className="max-w-6xl mx-auto p-4">
+        <div className="text-center py-20">
+          <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading saved data...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 bg-white rounded-xl shadow-lg mt-4 sm:mt-8">
+    <div className="h-[84vh] bg-white rounded-2xl shadow-xl flex flex-col relative overflow-hidden">
+      {/* Sticky Header */}
+      <div className="sticky top-0 bg-white z-30 border-b border-gray-200 shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center">
+          <button
+            onClick={loadSavedData}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition shadow-sm"
+          >
+            <RefreshCwIcon size={16} />
+            Refresh
+          </button>
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-        >
-          <ArrowLeftIcon size={18} />
-          Back
-        </button>
-
-        <div className="text-center flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Saved Excel Data</h1>
-          <p className="text-gray-600 text-sm">View and manage your saved Excel configurations</p>
+          <div className="flex-1 text-center mx-4">
+            <h1 className="text-3xl font-bold text-gray-800">Saved Excel Data</h1>
+            <p className="text-xs text-gray-500">View & manage your saved configurations</p>
+          </div>
+          <div className="w-[88px]"></div>
         </div>
 
-        <button
-          onClick={loadSavedData}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-        >
-          <RefreshCwIcon size={18} />
-          Refresh
-        </button>
-      </div>
-
-      {/* Search Bar */}
-      <div className="mb-6">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search elements..."
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-        />
-      </div>
-
-      {/* Stats */}
-      {sheets.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-            <div className="text-xl font-bold text-blue-600">{sheets.length}</div>
-            <div className="text-blue-800 text-xs sm:text-sm">Total Sheets</div>
-          </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-            <div className="text-xl font-bold text-green-600">{getTotalElements()}</div>
-            <div className="text-green-800 text-xs sm:text-sm">Total Elements</div>
-          </div>
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center col-span-2 sm:col-span-1">
-            <div className="text-xl font-bold text-purple-600">
-              {Math.round(getTotalElements() / sheets.length)}
-            </div>
-            <div className="text-purple-800 text-xs sm:text-sm">Avg Elements/Sheet</div>
-          </div>
-        </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
-
-      {/* Content */}
-      <div className="space-y-6">
-        {sheets.length === 0 ? (
-          <div className="text-center py-12 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg">
-            <FileTextIcon size={50} className="mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">No Saved Data Found</h3>
-            <button
-              onClick={() => navigate('/')}
-              className="px-6 py-2 mt-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              Create Excel Configuration
-            </button>
-          </div>
-        ) : (
-          currentSheets.map((sheet, index) => (
-            <div
-              key={startIndex + index}
-              className="border border-gray-200 rounded-lg p-4 sm:p-6 bg-white shadow-sm"
-            >
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-800 flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  {sheet.excellSheetName}
-                </h3>
-
-                <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs sm:text-sm rounded-full font-medium w-fit">
-                  {sheet.excelElements?.length || 0} elements
-                  {search.trim() && getDisplayElements(sheet).length !== sheet.excelElements?.length &&
-                    ` (${getDisplayElements(sheet).length} filtered)`
-                  }
-                </span>
+        <div className="max-w-6xl mx-auto px-4 pb-3 flex items-center justify-between">
+          {sheets.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              <div className="bg-blue-50 text-blue-800 px-3 py-1 rounded-full text-xs font-medium border border-blue-200 whitespace-nowrap">
+                Sheets: {sheets.length}
               </div>
-
-              {/* Responsive Table */}
-              <div className="overflow-x-auto rounded-lg border border-gray-200">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                        Line Item
-                      </th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                        Cell Value
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-gray-200">
-                    {getDisplayElements(sheet).length ? (
-                      getDisplayElements(sheet).map((el, i) => (
-                        <tr key={i} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-gray-800">{el.excelElement}</td>
-                          <td className="px-4 py-3 text-gray-600 font-mono">{el.exelCellValue}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="2" className="px-4 py-6 text-center text-gray-500">
-                          {search.trim() ? 'No matching elements found' : 'No elements in this sheet'}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+              <div className="bg-green-50 text-green-800 px-3 py-1 rounded-full text-xs font-medium border border-green-200 whitespace-nowrap">
+                Elements: {getTotalElements()}
+              </div>
+              <div className="bg-purple-50 text-purple-800 px-3 py-1 rounded-full text-xs font-medium border border-purple-200 whitespace-nowrap">
+                Avg/Sheet: {Math.round(getTotalElements() / sheets.length) || 0}
               </div>
             </div>
-          ))
+          ) : (
+            <div></div>
+          )}
+
+          <div className="relative w-56">
+            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search elements..."
+              className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition placeholder-gray-400"
+            />
+          </div>
+        </div>
+
+        {error && (
+          <div className="max-w-6xl mx-auto px-4 pb-2">
+            <div className="bg-red-50 border border-red-300 text-red-700 px-3 py-1.5 rounded-md text-xs">
+              {error}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Pagination - Only show if there are multiple pages */}
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto pb-16">
+        <div className="max-w-6xl mx-auto p-4">
+          {sheets.length === 0 ? (
+            <div className="text-center py-16 bg-gray-50 border-2 border-gray-300 border-dashed rounded-xl">
+              <FileTextIcon size={48} className="mx-auto mb-3 text-gray-400" />
+              <h3 className="text-lg font-semibold text-gray-700">No Saved Data Found</h3>
+              <button
+                onClick={() => navigate('/')}
+                className="px-5 py-2 mt-4 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition shadow"
+              >
+                Create Excel Configuration
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {currentSheets.map((sheet, index) => (
+                <div
+                  key={startIndex + index}
+                  className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition flex flex-col"
+                >
+                  <div className="px-5 pt-5 pb-3 flex justify-between items-start">
+                    <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                      {sheet.excellSheetName}
+                    </h3>
+                    <span className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full whitespace-nowrap">
+                      {getDisplayElements(sheet).length} / {sheet.excelElements?.length || 0}
+                      {search.trim() && getDisplayElements(sheet).length !== (sheet.excelElements?.length || 0) && ' filtered'}
+                    </span>
+                  </div>
+
+                  <div className="px-5 pb-4 overflow-y-auto max-h-80">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="px-2 py-2 text-left font-medium text-gray-600">Line Item</th>
+                          <th className="px-2 py-2 text-left font-medium text-gray-600">Cell Value</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {getDisplayElements(sheet).length > 0 ? (
+                          getDisplayElements(sheet).map((el, i) => (
+                            <tr key={i} className="hover:bg-gray-50">
+                              <td className="px-2 py-2 text-gray-800">{el.excelElement}</td>
+                              <td className="px-2 py-2 text-gray-600 font-mono">{el.exelCellValue}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="2" className="px-2 py-4 text-center text-gray-500 text-sm">
+                              {search.trim() ? "No matching results" : "No elements"}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ✅ FLOATING HOVERABLE PAGINATION */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6 p-4 bg-gray-50 rounded-lg">
-          <button
-            disabled={currentPage === 0}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-          >
-            <ArrowLeftIcon size={18} />
-            Previous Page
-          </button>
+        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="inline-flex flex-wrap justify-center items-center gap-1.5
+                          bg-white/0 hover:bg-white/80 hover:backdrop-blur-sm
+                          border border-gray-200 rounded-xl shadow-md px-3 py-2 transition">
 
-          <div className="text-center">
-            <span className="font-semibold text-gray-700">
-              Page {currentPage + 1} of {totalPages}
-            </span>
-            <p className="text-sm text-gray-600 mt-1">
-              Showing sheets {startIndex + 1}-{Math.min(endIndex, sheets.length)} of {sheets.length}
-            </p>
+            {/* Previous */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`px-3.5 py-1.5 text-sm font-medium rounded-lg border transition ${currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                  : 'bg-white/0 text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400'
+                }`}
+            >
+              Prev
+            </button>
+
+            {/* Page Numbers */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`px-3.5 py-1.5 text-sm font-medium rounded-lg border transition ${currentPage === page
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white/0 text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400'
+                  }`}
+              >
+                {page}
+              </button>
+            ))}
+
+            {/* Next */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className={`px-3.5 py-1.5 text-sm font-medium rounded-lg border transition ${currentPage === totalPages
+                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                  : 'bg-white/0 text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400'
+                }`}
+            >
+              Next
+            </button>
+
           </div>
-
-          <button
-            disabled={currentPage === totalPages - 1}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-          >
-            Next Page
-            <ArrowLeftIcon size={18} className="rotate-180" />
-          </button>
         </div>
       )}
+
     </div>
   );
 };

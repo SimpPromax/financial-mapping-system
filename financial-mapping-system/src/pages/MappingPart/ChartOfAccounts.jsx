@@ -1,11 +1,12 @@
-// src/pages/ChartOfAccounts.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import api from "../../services/api";
 import { Plus, X } from "lucide-react";
 import Editor from "react-simple-code-editor";
 import { highlight, languages } from "prismjs/components/prism-core";
 import "prismjs/components/prism-sql";
-import "prismjs/themes/prism-tomorrow.css"; // dark theme
+import "prismjs/themes/prism-tomorrow.css";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 
 const ChartOfAccounts = () => {
     const [coaList, setCoaList] = useState([]);
@@ -16,11 +17,13 @@ const ChartOfAccounts = () => {
     const [loading, setLoading] = useState(false);
     const [formVisible, setFormVisible] = useState(false);
     const [editingCoa, setEditingCoa] = useState(null);
+    const [isCodeDuplicate, setIsCodeDuplicate] = useState(false); // 🔴 Real-time duplicate state
 
-    // Search & Pagination
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 5;
+    const itemsPerPage = 4;
+
+    const cardsContainerRef = useRef(null);
 
     // Fetch COAs
     const fetchCOAs = async () => {
@@ -29,6 +32,7 @@ const ChartOfAccounts = () => {
             setCoaList(res.data || []);
         } catch (err) {
             console.error("Failed to fetch COAs:", err);
+            Swal.fire({ icon: "error", title: "Error", text: "Failed to fetch COAs." });
         }
     };
 
@@ -36,14 +40,16 @@ const ChartOfAccounts = () => {
         fetchCOAs();
     }, []);
 
-    // SQL Sanitizer Functions
+    // Helpers
     const removeComments = (sql) => {
+        if (!sql) return "";
         let cleaned = sql.replace(/--.*$/gm, "");
         cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, "");
         return cleaned;
     };
 
     const normalizeSQL = (sql) => {
+        if (!sql) return "";
         return sql
             .split("\n")
             .map((line) => line.trim())
@@ -52,11 +58,33 @@ const ChartOfAccounts = () => {
     };
 
     const isSelectOnly = (sql) => {
-        const firstWord = sql.trim().split(" ")[0].toUpperCase();
+        if (!sql) return false;
+        const firstWord = sql.trim().split(/\s+/)[0].toUpperCase();
         return firstWord === "SELECT";
     };
 
-    // Reset Form
+    // Duplicate checker (excludes current item during edit)
+    const checkForDuplicateCode = (code) => {
+        if (!code.trim()) {
+            setIsCodeDuplicate(false);
+            return;
+        }
+        const exists = coaList.some(
+            (c) =>
+                c.coaCode?.toLowerCase() === code.trim().toLowerCase() &&
+                c.coaId !== (editingCoa?.coaId || null)
+        );
+        setIsCodeDuplicate(exists);
+    };
+
+    // Debounced real-time validation
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            checkForDuplicateCode(coaCode);
+        }, 300);
+        return () => clearTimeout(timeoutId);
+    }, [coaCode, coaList, editingCoa]);
+
     const resetForm = () => {
         setEditingCoa(null);
         setCoaCode("");
@@ -64,114 +92,145 @@ const ChartOfAccounts = () => {
         setDescription("");
         setSqlScript("-- Write SQL here\n");
         setFormVisible(false);
+        setIsCodeDuplicate(false); // Reset validation state
     };
 
-    // Handle Add
+    const toastSuccess = (message) => {
+        Swal.fire({ icon: "success", title: message, toast: true, position: "top-end", timer: 1500, showConfirmButton: false });
+    };
+
+    const toastError = (message) => {
+        Swal.fire({ icon: "error", title: "Error", text: message });
+    };
+
     const handleAddCOA = async () => {
-        if (!coaCode.trim() || !coaName.trim() || !sqlScript.trim()) {
-            alert("Please fill required fields (code, name, SQL).");
-            return;
+        const trimmedCode = coaCode.trim();
+        const trimmedName = coaName.trim();
+        const trimmedSQL = sqlScript.trim();
+
+        if (!trimmedCode || !trimmedName || !trimmedSQL) {
+            return Swal.fire({ icon: "warning", title: "Missing fields", text: "Please fill required fields (code, name, SQL)." });
         }
 
-        let cleanedSQL = removeComments(sqlScript);
-        cleanedSQL = normalizeSQL(cleanedSQL);
+        // Fallback safety check (should rarely trigger due to real-time validation)
+        if (isCodeDuplicate) {
+            return Swal.fire({ icon: "warning", title: "Duplicate Code", text: `A COA with code "${trimmedCode}" already exists.` });
+        }
 
+        let cleanedSQL = removeComments(trimmedSQL);
+        cleanedSQL = normalizeSQL(cleanedSQL);
         if (!isSelectOnly(cleanedSQL)) {
-            alert("Only SELECT statements are allowed. Comments and other statements are removed.");
-            return;
+            return Swal.fire({ icon: "warning", title: "Invalid SQL", text: "Only SELECT statements are allowed." });
         }
 
         setLoading(true);
         try {
             const payload = {
-                coaCode: coaCode.trim(),
-                coaName: coaName.trim(),
+                coaCode: trimmedCode,
+                coaName: trimmedName,
                 description: description.trim(),
                 sqlScript: cleanedSQL,
-                createdBy: "admin",
+                createdBy: "admin"
             };
             const res = await api.post("/api/coa", payload);
-            setCoaList([...coaList, res.data || payload]);
-            alert("COA added successfully!");
+            const newItem = res.data || payload;
+            setCoaList((prev) => [...prev, newItem]);
+            toastSuccess("COA added");
             resetForm();
         } catch (err) {
             console.error(err);
-            alert("Failed to add COA.");
+            toastError("Failed to add COA.");
         } finally {
             setLoading(false);
         }
     };
 
-    // Handle Update
     const handleUpdateCOA = async () => {
         if (!editingCoa) return;
 
-        let cleanedSQL = removeComments(sqlScript);
+        const trimmedCode = coaCode.trim();
+        const trimmedName = coaName.trim();
+        const trimmedSQL = sqlScript.trim();
+
+        if (!trimmedCode || !trimmedName || !trimmedSQL) {
+            return Swal.fire({ icon: "warning", title: "Missing fields", text: "Please fill required fields (code, name, SQL)." });
+        }
+
+        // Fallback safety check
+        if (isCodeDuplicate) {
+            return Swal.fire({ icon: "warning", title: "Duplicate Code", text: `Another COA already uses code "${trimmedCode}".` });
+        }
+
+        let cleanedSQL = removeComments(trimmedSQL);
         cleanedSQL = normalizeSQL(cleanedSQL);
         if (!isSelectOnly(cleanedSQL)) {
-            alert("Only SELECT statements are allowed.");
-            return;
+            return Swal.fire({ icon: "warning", title: "Invalid SQL", text: "Only SELECT statements are allowed." });
         }
 
         setLoading(true);
         try {
             const res = await api.put(`/api/coa/${editingCoa.coaId}`, {
-                coaCode,
-                coaName,
-                description,
+                coaCode: trimmedCode,
+                coaName: trimmedName,
+                description: description.trim(),
                 sqlScript: cleanedSQL,
                 createdBy: editingCoa.createdBy,
             });
-            setCoaList((prev) =>
-                prev.map((c) => (c.coaId === editingCoa.coaId ? res.data : c))
-            );
-            alert("COA updated successfully!");
+            const updated = res.data || { ...editingCoa, coaCode: trimmedCode, coaName: trimmedName, description: description.trim(), sqlScript: cleanedSQL };
+            setCoaList((prev) => prev.map((c) => (c.coaId === editingCoa.coaId ? updated : c)));
+            toastSuccess("COA updated");
             resetForm();
         } catch (err) {
             console.error(err);
-            alert("Failed to update COA.");
+            toastError("Failed to update COA.");
         } finally {
             setLoading(false);
         }
     };
 
-    // Handle Delete
     const handleDeleteCOA = async () => {
         if (!editingCoa) return;
-        if (!window.confirm("Are you sure you want to delete this COA?")) return;
+        const result = await Swal.fire({
+            title: "Delete COA?",
+            text: `Are you sure you want to delete "${editingCoa.coaCode}"?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Delete",
+            confirmButtonColor: "#dc2626",
+            cancelButtonText: "Cancel",
+        });
+        if (!result.isConfirmed) return;
 
         setLoading(true);
         try {
             await api.delete(`/api/coa/${editingCoa.coaId}`);
             setCoaList((prev) => prev.filter((c) => c.coaId !== editingCoa.coaId));
-            alert("COA deleted successfully!");
+            toastSuccess("COA deleted");
             resetForm();
         } catch (err) {
             console.error(err);
-            alert("Failed to delete COA.");
+            toastError("Failed to delete COA.");
         } finally {
             setLoading(false);
         }
     };
 
-    // Filter and paginate COAs
-    const filteredCoas = coaList.filter((c) =>
-        c.coaCode.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Filter & paginate
+    const filteredCoas = coaList.filter((c) => (c.coaCode || "").toLowerCase().includes(searchQuery.toLowerCase()));
+    const totalPages = Math.max(1, Math.ceil(filteredCoas.length / itemsPerPage));
+    const paginatedCoas = filteredCoas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-    const totalPages = Math.ceil(filteredCoas.length / itemsPerPage);
-    const paginatedCoas = filteredCoas.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    useEffect(() => {
+        if (currentPage > totalPages) setCurrentPage(1);
+    }, [filteredCoas.length, totalPages]);
 
     return (
-        <div className="flex flex-col h-[calc(100vh-5rem)] max-w-6xl mx-auto">
+        <div className="flex flex-col h-[84vh] max-w-6xl mx-auto relative">
             {/* Header */}
             <div className="bg-gray-50 border-b border-gray-200 px-4 py-4 z-30 shadow-sm flex justify-between items-center flex-shrink-0">
                 <h2 className="text-3xl font-extrabold text-gray-800">📚 Chart of Accounts</h2>
                 <button
-                    onClick={() => setFormVisible(true)}
+                    onClick={() => { resetForm(); setFormVisible(true); }}
                     className="bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-blue-700 hover:scale-105 transition flex items-center gap-2"
                 >
                     <Plus size={16} /> <span>Add New COA</span>
@@ -180,31 +239,27 @@ const ChartOfAccounts = () => {
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-white [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-                {/* Cards Header with Search */}
                 <div className="mt-4 mb-4 flex justify-between items-center">
                     <h3 className="text-2xl font-bold text-gray-700">
                         Listed Chart of Accounts ({filteredCoas.length})
                     </h3>
-                    <input
-                        type="text"
-                        placeholder="Search by COA Code..."
-                        value={searchQuery}
-                        onChange={(e) => {
-                            setSearchQuery(e.target.value);
-                            setCurrentPage(1);
-                        }}
-                        className="border rounded-lg px-3 py-1 outline-none focus:ring-2 focus:ring-blue-200"
-                    />
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 select-none">🔍</span>
+                        <input
+                            type="text"
+                            placeholder="Search by COA Code..."
+                            value={searchQuery}
+                            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl bg-white text-gray-700 shadow-sm focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all w-64 placeholder-gray-400 hover:border-blue-400"
+                        />
+                    </div>
                 </div>
 
                 {/* Cards */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-10">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20" ref={cardsContainerRef}>
                     {paginatedCoas.length === 0 && (
-                        <p className="col-span-full text-center text-gray-500 p-10 italic">
-                            No Chart of Accounts found.
-                        </p>
+                        <p className="col-span-full text-center text-gray-500 p-10 italic">No Chart of Accounts found.</p>
                     )}
-
                     {paginatedCoas.map((c, idx) => (
                         <div key={c.coaId || idx} className="p-6 bg-white rounded-xl shadow-lg border flex flex-col">
                             <div className="flex justify-between items-start gap-4">
@@ -213,28 +268,22 @@ const ChartOfAccounts = () => {
                                     <p className="text-sm text-gray-500 mt-1">{c.coaName}</p>
                                 </div>
                             </div>
-
                             <p className="mt-3 text-gray-600 italic border-l-4 pl-3">
                                 <span className="font-bold not-italic">Description:</span> {c.description || "No description provided."}
                             </p>
-
                             <div className="mt-4">
                                 <p className="text-xs font-semibold text-gray-500 mb-1">SQL</p>
-                                <pre className="bg-gray-700 border border-gray-800 p-4 rounded-lg text-sm text-emerald-200 font-mono overflow-auto max-h-44">
-                                    <code>{c.sqlScript}</code>
-                                </pre>
+                                <pre className="bg-gray-800 border border-gray-800 p-4 rounded-lg text-sm text-emerald-200 font-mono overflow-auto max-h-44"><code>{c.sqlScript}</code></pre>
                             </div>
-
                             <p className="text-right text-xs text-gray-400 mt-3">Created by: {c.createdBy || "N/A"}</p>
-
                             <div className="mt-4 flex justify-end">
                                 <button
                                     onClick={() => {
                                         setEditingCoa(c);
-                                        setCoaCode(c.coaCode);
-                                        setCoaName(c.coaName);
-                                        setDescription(c.description);
-                                        setSqlScript(c.sqlScript);
+                                        setCoaCode(c.coaCode || "");
+                                        setCoaName(c.coaName || "");
+                                        setDescription(c.description || "");
+                                        setSqlScript(c.sqlScript || "-- Write SQL here\n");
                                         setFormVisible(true);
                                     }}
                                     className="px-4 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
@@ -245,39 +294,45 @@ const ChartOfAccounts = () => {
                         </div>
                     ))}
                 </div>
+            </div>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="flex justify-center items-center gap-2 mt-4">
+            {/* Sticky Pagination */}
+            {totalPages > 1 && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40">
+                    <div className="inline-flex flex-wrap justify-center items-center gap-1.5 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-xl shadow-md px-3 py-2">
                         <button
                             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                            className="px-3 py-1 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-shadow shadow-sm"
+                            className={`px-3 py-1 rounded-lg border transition ${currentPage === 1
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-700"
+                                }`}
                         >
                             Prev
                         </button>
-
                         {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                             <button
                                 key={page}
                                 onClick={() => setCurrentPage(page)}
-                                className={`px-3 py-1 rounded-lg border border-gray-300 shadow-sm transition ${currentPage === page
-                                    ? "bg-blue-600 text-white border-blue-600"
-                                    : "bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                                className={`px-3 py-1 rounded-lg border transition ${currentPage === page
+                                        ? "bg-blue-600 text-white border-blue-600"
+                                        : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-700"
                                     }`}
                             >
                                 {page}
                             </button>
                         ))}
-
                         <button
                             onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                            className="px-3 py-1 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-shadow shadow-sm"
+                            className={`px-3 py-1 rounded-lg border transition ${currentPage === totalPages
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-700"
+                                }`}
                         >
                             Next
                         </button>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* Modal Form */}
             {formVisible && (
@@ -289,7 +344,6 @@ const ChartOfAccounts = () => {
                         className="bg-white rounded-xl shadow-xl w-full max-w-5xl relative p-8 translate-x-40"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Close button */}
                         <button
                             onClick={resetForm}
                             className="absolute top-4 right-4 text-gray-700 hover:text-red-600"
@@ -303,6 +357,7 @@ const ChartOfAccounts = () => {
                         </h3>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* COA Code with real-time validation */}
                             <label>
                                 <span className="text-gray-700 font-medium">COA Code</span>
                                 <input
@@ -310,9 +365,18 @@ const ChartOfAccounts = () => {
                                     value={coaCode}
                                     onChange={(e) => setCoaCode(e.target.value)}
                                     placeholder="e.g. 1000-Assets-Cash"
-                                    className="mt-1 border p-3 rounded-lg w-full outline-none focus:ring-2 focus:ring-blue-200"
+                                    className={`mt-1 border p-3 rounded-lg w-full outline-none focus:ring-2 ${isCodeDuplicate
+                                            ? "border-red-500 focus:ring-red-200"
+                                            : "focus:ring-blue-200"
+                                        }`}
                                 />
+                                {isCodeDuplicate && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        A COA with this code already exists.
+                                    </p>
+                                )}
                             </label>
+
                             <label>
                                 <span className="text-gray-700 font-medium">COA Name</span>
                                 <input
@@ -336,10 +400,11 @@ const ChartOfAccounts = () => {
                             />
                         </label>
 
-                        {/* SQL Editor with line numbers */}
                         <div className="mt-6 flex border rounded-lg shadow-lg overflow-hidden bg-[#1e1e1e]">
                             <div className="bg-[#1e1e1e] text-gray-500 text-right py-3 px-3 select-none" style={{ lineHeight: "1.5rem" }}>
-                                {sqlScript.split("\n").map((_, i) => (<div key={i}>{i + 1}</div>))}
+                                {sqlScript.split("\n").map((_, i) => (
+                                    <div key={i}>{i + 1}</div>
+                                ))}
                             </div>
                             <Editor
                                 value={sqlScript}
@@ -362,8 +427,16 @@ const ChartOfAccounts = () => {
                         <div className="mt-6 flex items-center gap-3">
                             <button
                                 onClick={editingCoa ? handleUpdateCOA : handleAddCOA}
-                                disabled={loading}
-                                className={`px-6 py-2 rounded-lg font-semibold shadow-md transition ${loading ? "bg-gray-400 text-gray-100" : "bg-blue-600 text-white hover:bg-blue-700 hover:scale-105"
+                                disabled={
+                                    loading ||
+                                    isCodeDuplicate ||
+                                    !coaCode.trim() ||
+                                    !coaName.trim() ||
+                                    !sqlScript.trim()
+                                }
+                                className={`px-6 py-2 rounded-lg font-semibold shadow-md transition ${loading || isCodeDuplicate || !coaCode.trim() || !coaName.trim() || !sqlScript.trim()
+                                        ? "bg-gray-400 text-gray-100 cursor-not-allowed"
+                                        : "bg-blue-600 text-white hover:bg-blue-700 hover:scale-105"
                                     }`}
                             >
                                 {loading ? "Saving..." : editingCoa ? "Update COA" : "Add COA"}
