@@ -312,7 +312,7 @@ const ExcelDataCollector = () => {
     Swal.fire({
       icon: type,
       title: message,
-      timer: 4000,
+      timer: 500,
       timerProgressBar: true,
       showConfirmButton: false,
       position: 'top-end',
@@ -567,7 +567,7 @@ const ExcelDataCollector = () => {
           icon: 'success',
           title: 'Success!',
           text: response.data.message || 'Sheet saved successfully!',
-          timer: 3000,
+          timer: 500,
           timerProgressBar: true,
           showConfirmButton: false
         });
@@ -606,8 +606,9 @@ const ExcelDataCollector = () => {
     <div className="min-h-[80vh] bg-cover bg-center bg-fixed bg-gray-100">
       <div className="h-[80vh] flex flex-col">
         <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200 py-4 px-6">
-          <div className="flex justify-center">
+          <div className="flex-1 text-center mx-4">
             <h2 className="text-3xl font-bold text-gray-800">Excel Data Collector</h2>
+            <p className="text-xs text-gray-500">Manage and validate your Excel sheets</p>
           </div>
         </div>
 
