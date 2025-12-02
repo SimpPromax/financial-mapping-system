@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import Swal from 'sweetalert2';
-import { Plus, Save, Eye, X, Search, FileText, ChevronRight } from 'lucide-react';
+import { Plus, Save, Eye, X, Search, FileText, ChevronRight, RefreshCw } from 'lucide-react';
 
 const ExcelDataCollector = () => {
   // Save state to localStorage
@@ -273,6 +273,97 @@ const ExcelDataCollector = () => {
 
     loadSelectedSheet();
   }, [selectedSheetId, sheets]);
+
+  // ✅ REFRESH LOGIC: Clear localStorage and reload fresh data
+  const handleRefresh = () => {
+    // Clear localStorage
+    localStorage.removeItem('excelCollectorState');
+
+    // Reset all state to initial values
+    setSheets([]);
+    setSheetData({});
+    setInitialSheetData({});
+    setSheetUnsavedStatus({});
+    setSelectedSheetId(null);
+    setHasLoadedInitialData(false);
+
+    // Trigger fresh data load (same as first visit)
+    const loadFreshData = async () => {
+      try {
+        setIsLoading(true);
+        const filesResponse = await api.get('/api/excel/files');
+        const fileNames = Array.isArray(filesResponse.data)
+          ? filesResponse.data.map(file => file.fileName).filter(Boolean)
+          : ['financial-report.xlsx', 'sales-data.xlsx', 'inventory-list.xlsx'];
+
+        setAvailableSheetNames(fileNames);
+
+        const countsResponse = await api.get('/api/excel/all-counts');
+        const countsMap = countsResponse.data || {};
+
+        console.log('🔢 Loaded element counts:', countsMap);
+
+        const initialSheets = fileNames.map((fileName, index) => ({
+          id: `sheet-${index}`,
+          sheetName: fileName,
+          elements: [],
+          headerText: fileName.replace('.xlsx', '').split('-').map(word =>
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' '),
+          elementCount: countsMap[fileName] || 0
+        }));
+
+        setSheets(initialSheets);
+        setSheetElementCounts(countsMap);
+
+        // Initialize fresh sheet data (no localStorage)
+        const initialSheetDataObj = {};
+        const sheetDataObj = {};
+        initialSheets.forEach(sheet => {
+          initialSheetDataObj[sheet.id] = { elements: [], lastLoaded: null };
+          sheetDataObj[sheet.id] = { elements: [], lastLoaded: null };
+        });
+        setInitialSheetData(initialSheetDataObj);
+        setSheetData(sheetDataObj);
+
+        if (initialSheets.length > 0) {
+          setSelectedSheetId(initialSheets[0].id);
+        }
+
+        setHasLoadedInitialData(true);
+        showAlert('success', 'Sheet list refreshed!');
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+        // Use fallback sheets on error
+        const fallbackSheets = [
+          { id: 'sheet-1', sheetName: 'financial-report.xlsx', elements: [], headerText: 'Financial Report', elementCount: 0 },
+          { id: 'sheet-2', sheetName: 'sales-data.xlsx', elements: [], headerText: 'Sales Data', elementCount: 0 },
+          { id: 'sheet-3', sheetName: 'inventory-list.xlsx', elements: [], headerText: 'Inventory List', elementCount: 0 }
+        ];
+
+        setSheets(fallbackSheets);
+        setAvailableSheetNames(fallbackSheets.map(s => s.sheetName));
+
+        const fallbackInitialSheetData = {};
+        const fallbackSheetData = {};
+        fallbackSheets.forEach(sheet => {
+          fallbackInitialSheetData[sheet.id] = { elements: [], lastLoaded: null };
+          fallbackSheetData[sheet.id] = { elements: [], lastLoaded: null };
+        });
+        setInitialSheetData(fallbackInitialSheetData);
+        setSheetData(fallbackSheetData);
+
+        if (fallbackSheets.length > 0) {
+          setSelectedSheetId(fallbackSheets[0].id);
+        }
+        setHasLoadedInitialData(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadFreshData();
+  };
 
   const refreshElementCounts = async () => {
     try {
@@ -616,15 +707,25 @@ const ExcelDataCollector = () => {
           {/* Left Section - Sheet Cards */}
           <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
             <div className="p-4 border-b border-gray-200">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search sheets..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
-                />
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleRefresh}
+                  className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
+                  title="Refresh sheet list from server"
+                  disabled={isLoading}
+                >
+                  <RefreshCw size={20} className={`text-gray-600 ${isLoading ? 'animate-spin' : ''}`} />
+                </button>
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Search sheets..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                  />
+                </div>
               </div>
             </div>
 
@@ -642,8 +743,8 @@ const ExcelDataCollector = () => {
                       key={sheet.id}
                       onClick={() => handleSheetSelect(sheet.id)}
                       className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${isSelected
-                          ? 'border-green-500 bg-green-50 shadow-md'
-                          : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                        ? 'border-green-500 bg-green-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
                         } ${currentElements.length > 0 ? 'bg-green-50' : 'bg-red-50'} ${isAnimating ? 'animate-horizontal-shake' : ''
                         }`}
                     >
@@ -662,8 +763,8 @@ const ExcelDataCollector = () => {
                             </p>
                             <div className="flex items-center flex-wrap gap-1 mt-2">
                               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${currentElements.length > 0
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
                                 }`}>
                                 {isLoadingSheet ? (
                                   <div className="flex items-center space-x-1">
@@ -725,8 +826,8 @@ const ExcelDataCollector = () => {
                         </p>
                         <div className="flex items-center flex-wrap gap-1 mt-1">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${selectedSheetElements.length > 0
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
                             }`}>
                             {selectedSheetElements.length > 0
                               ? `${selectedSheetElements.length} element${selectedSheetElements.length !== 1 ? 's' : ''}`
@@ -753,7 +854,7 @@ const ExcelDataCollector = () => {
                         <button
                           onClick={saveCurrentSheet}
                           disabled={isLoading}
-                          className={`bg-linear-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 border-0 rounded-lg px-6 py-3 flex items-center space-x-2 font-medium text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-95 transition-all duration-300 ${isLoading ? 'opacity-75 cursor-not-allowed' : ''
+                          className={`bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 border-0 rounded-lg px-6 py-3 flex items-center space-x-2 font-medium text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-95 transition-all duration-300 ${isLoading ? 'opacity-75 cursor-not-allowed' : ''
                             }`}
                         >
                           {isLoading ? (
@@ -834,9 +935,9 @@ const ExcelDataCollector = () => {
                       <div className="pt-4 border-t border-gray-200">
                         <button
                           onClick={addNewElement}
-                          className="w-full bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-0 rounded-xl px-6 py-4 text-white font-semibold shadow-lg hover:shadow-2xl transform hover:scale-[1.02] hover:-translate-y-0.5 active:scale-95 active:translate-y-0 transition-all duration-300 flex items-center justify-center space-x-3 group relative overflow-hidden"
+                          className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-0 rounded-xl px-6 py-4 text-white font-semibold shadow-lg hover:shadow-2xl transform hover:scale-[1.02] hover:-translate-y-0.5 active:scale-95 active:translate-y-0 transition-all duration-300 flex items-center justify-center space-x-3 group relative overflow-hidden"
                         >
-                          <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/30 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                           <div className="relative z-10 flex items-center space-x-3">
                             <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 group-hover:rotate-90 transition-all duration-500">
                               <Plus size={18} />
@@ -878,6 +979,13 @@ const ExcelDataCollector = () => {
         }
         .animate-horizontal-shake {
           animation: horizontalShake 0.6s ease-in-out;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translate(-50%, 20px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
         }
       `}</style>
     </div>

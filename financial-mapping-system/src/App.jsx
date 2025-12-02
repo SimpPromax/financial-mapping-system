@@ -12,7 +12,7 @@ import ExcelInitialiser from './pages/ExcelFormInitialisation/ExcelcelInitialise
 import ViewSavedData from './pages/ExcelFormInitialisation/ViewSavedData';
 import ChartOfAccounts from './pages/MappingPart/ChartOfAccounts';
 import Mapping from './pages/MappingPart/Mapping';
-
+import Reports from './pages/Reports/Reports';
 function App() {
   return (
     <Router>
@@ -38,6 +38,7 @@ function App() {
           {/* New Routes */}
           <Route path="chart-of-accounts" element={<ChartOfAccounts />} />
           <Route path="mapping" element={<Mapping />} />
+          <Route path="reports" element={<Reports />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
