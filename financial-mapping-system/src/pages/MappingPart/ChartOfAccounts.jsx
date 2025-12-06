@@ -48,7 +48,14 @@ const DANGEROUS_SQL_PATTERNS = [
   /\/\*.*\*\//gs,
 ];
 
-const ChartOfAccounts = () => {
+const ChartOfAccounts = ({ user }) => {
+  // Use the user prop passed from App.jsx
+  const currentUser = user || {
+    username: "admin",
+    fullName: "Administrator",
+    email: "admin@example.com"
+  };
+
   const [coaList, setCoaList] = useState([]);
   const [archivedList, setArchivedList] = useState([]);
   const [coaCode, setCoaCode] = useState("");
@@ -398,7 +405,7 @@ const ChartOfAccounts = () => {
           coaName: coa?.coaName || "Unknown",
           description: coa?.description || "",
           sqlScript: coa?.sqlScript || "",
-          changedBy: coa?.createdBy || "system",
+          changedBy: coa?.createdBy || currentUser.username,
           changeType: "CREATE",
           changes: JSON.stringify({
             action: "Initial creation",
@@ -413,7 +420,7 @@ const ChartOfAccounts = () => {
     } finally {
       setLoadingHistory(false);
     }
-  }, [coaList, archivedList]);
+  }, [coaList, archivedList, currentUser]);
 
   // Handle add COA
   const handleAddCOA = async () => {
@@ -434,7 +441,8 @@ const ChartOfAccounts = () => {
         coaName: trimmedName,
         description: description.trim(),
         sqlScript: cleanedSQL,
-        createdBy: "admin"
+        createdBy: currentUser.username,
+        createdByName: currentUser.fullName || currentUser.username
       };
 
       const res = await api.post("/api/coa", payload);
@@ -477,7 +485,8 @@ const ChartOfAccounts = () => {
         coaName: trimmedName,
         description: description.trim(),
         sqlScript: cleanedSQL,
-        modifiedBy: "admin",
+        modifiedBy: currentUser.username,
+        modifiedByName: currentUser.fullName || currentUser.username
       });
 
       const updated = res.data || {
@@ -485,7 +494,9 @@ const ChartOfAccounts = () => {
         coaCode: trimmedCode,
         coaName: trimmedName,
         description: description.trim(),
-        sqlScript: cleanedSQL
+        sqlScript: cleanedSQL,
+        modifiedBy: currentUser.username,
+        modifiedByName: currentUser.fullName || currentUser.username
       };
 
       setCoaList((prev) => prev.map((c) => (c.coaId === editingCoa.coaId ? updated : c)));
@@ -505,7 +516,7 @@ const ChartOfAccounts = () => {
     }
   };
 
-  // Handle archive COA - FIXED VERSION
+  // Handle archive COA
   const handleArchiveCOA = async (coa) => {
     if (!coa) return;
 
@@ -545,7 +556,8 @@ const ChartOfAccounts = () => {
       console.log("Archiving COA:", coa.coaCode, coa.coaId);
 
       await api.post(`/api/coa/${coa.coaId}/archive`, {
-        archivedBy: "admin",
+        archivedBy: currentUser.username,
+        archivedByName: currentUser.fullName || currentUser.username,
         reason: result.value?.reason || ""
       });
 
@@ -556,7 +568,8 @@ const ChartOfAccounts = () => {
       const archivedCoa = {
         ...coa,
         archived: true,
-        archivedBy: "admin",
+        archivedBy: currentUser.username,
+        archivedByName: currentUser.fullName || currentUser.username,
         archivedDate: new Date().toISOString(),
         archivedReason: result.value?.reason || ""
       };
@@ -600,14 +613,18 @@ const ChartOfAccounts = () => {
 
     try {
       await api.post(`/api/coa/${coaId}/restore`, {
-        restoredBy: "admin"
+        restoredBy: currentUser.username,
+        restoredByName: currentUser.fullName || currentUser.username
       });
 
       // Optimistic update: immediately remove from archived and add to active
       const coaToRestore = archivedList.find(c => c.coaId === coaId);
       if (coaToRestore) {
-        const { archivedBy, archivedDate, archivedReason, ...restoredCoa } = coaToRestore;
+        const { archivedBy, archivedByName, archivedDate, archivedReason, ...restoredCoa } = coaToRestore;
         restoredCoa.archived = false;
+        restoredCoa.restoredBy = currentUser.username;
+        restoredCoa.restoredByName = currentUser.fullName || currentUser.username;
+        restoredCoa.restoredDate = new Date().toISOString();
         setCoaList((prev) => [...prev, restoredCoa]);
         setArchivedList((prev) => prev.filter((c) => c.coaId !== coaId));
       }
@@ -782,9 +799,9 @@ const ChartOfAccounts = () => {
   };
 
   return (
-    <div className="flex flex-col h-[84vh] max-w-6xl mx-auto relative">
+    <div className="flex flex-col min-h-screen w-full bg-white relative">
       {/* Header */}
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-4 z-30 shadow-sm flex justify-between items-center shrink-0">
+      <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 z-30 shadow-sm flex justify-between items-center shrink-0">
         <div className="flex items-center gap-3">
           <h2 className="text-3xl font-extrabold text-gray-800">📚 Chart of Accounts</h2>
           <div className="flex gap-2">
@@ -794,6 +811,13 @@ const ChartOfAccounts = () => {
             <span className="bg-gray-100 text-gray-800 text-sm font-semibold px-3 py-1 rounded-full">
               {archivedList.length} Archived
             </span>
+            {currentUser && (
+              <span className="bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full flex items-center gap-1">
+                <User size={12} />
+                {currentUser.username}
+                {currentUser.role && ` (${currentUser.role})`}
+              </span>
+            )}
           </div>
           {(fetchingCOAs || fetchingArchived) && (
             <span className="text-sm text-gray-500 flex items-center gap-1">
@@ -824,7 +848,7 @@ const ChartOfAccounts = () => {
       </div>
 
       {/* Main Content Area with Pill Navigation on Right */}
-      <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-hidden flex flex-col w-full">
         {/* Pill Navigation Container - Fixed at the top */}
         <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-3">
           <div className="flex justify-between items-center">
@@ -832,6 +856,11 @@ const ChartOfAccounts = () => {
             <div className="flex-1">
               <h3 className="text-xl font-bold text-gray-800">
                 {showArchived ? "Archived Chart of Accounts" : "Active Chart of Accounts"}
+                {currentUser && (
+                  <span className="text-sm text-gray-500 ml-2 font-normal">
+                    (Logged in as: {currentUser.fullName || currentUser.username})
+                  </span>
+                )}
               </h3>
               <p className="text-sm text-gray-600 mt-1">
                 {showArchived
@@ -979,7 +1008,7 @@ const ChartOfAccounts = () => {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-white [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-white w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
 
           {/* Active COAs View */}
           {!showArchived && (
@@ -1029,7 +1058,7 @@ const ChartOfAccounts = () => {
                   )}
 
                   {/* Cards Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20" ref={cardsContainerRef}>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-20" ref={cardsContainerRef}>
                     {paginatedCoas.map((c, idx) => (
                       <div
                         key={c.coaId || idx}
@@ -1094,7 +1123,12 @@ const ChartOfAccounts = () => {
                             </div>
                           </div>
 
-                          <p className="text-right text-xs text-gray-400 mt-3">Created by: {c.createdBy || "N/A"}</p>
+                          <p className="text-right text-xs text-gray-400 mt-3">
+                            Created by: {c.createdByName || c.createdBy || "N/A"}
+                            {c.modifiedByName && (
+                              <span className="ml-2">| Modified by: {c.modifiedByName}</span>
+                            )}
+                          </p>
                         </div>
 
                         {/* Edit and Archive buttons */}
@@ -1210,7 +1244,7 @@ const ChartOfAccounts = () => {
                   )}
 
                   {/* Archived Cards Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
                     {paginatedArchivedCoas.map((c, idx) => (
                       <div
                         key={c.coaId || idx}
@@ -1245,13 +1279,13 @@ const ChartOfAccounts = () => {
 
                           <div className="mt-4 grid grid-cols-2 gap-4 text-xs text-gray-500">
                             <div>
-                              <span className="font-semibold">Archived by:</span> {c.archivedBy || "N/A"}
+                              <span className="font-semibold">Archived by:</span> {c.archivedByName || c.archivedBy || "N/A"}
                             </div>
                             <div>
                               <span className="font-semibold">Archived on:</span> {formatDate(c.archivedDate)}
                             </div>
                             <div>
-                              <span className="font-semibold">Created by:</span> {c.createdBy || "N/A"}
+                              <span className="font-semibold">Created by:</span> {c.createdByName || c.createdBy || "N/A"}
                             </div>
                             <div>
                               <span className="font-semibold">Created on:</span> {formatDate(c.createdDate)}
@@ -1332,7 +1366,7 @@ const ChartOfAccounts = () => {
       {/* Version History Modal */}
       {showHistory && (
         <div className="fixed inset-0 bg-black/40 z-50 flex justify-center items-center">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-6xl relative p-8">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-7xl mx-4 relative p-8">
             <button
               onClick={() => setShowHistory(false)}
               className="absolute top-4 right-4 text-gray-700 hover:text-red-600"
@@ -1494,7 +1528,7 @@ const ChartOfAccounts = () => {
           onClick={resetForm}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-5xl relative p-8"
+            className="bg-white rounded-xl shadow-xl w-full max-w-6xl mx-4 relative p-8"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -1510,6 +1544,22 @@ const ChartOfAccounts = () => {
               {editingCoa ? <FileText size={24} /> : <Plus size={24} />}
               {editingCoa ? "Edit COA" : "Add New COA"}
             </h3>
+
+            {/* User Info Banner */}
+            {currentUser && (
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2">
+                  <User size={16} className="text-blue-600" />
+                  <span className="text-sm text-blue-700">
+                    Logged in as: <span className="font-semibold">{currentUser.fullName || currentUser.username}</span>
+                    {currentUser.role && <span className="ml-2 text-blue-600">({currentUser.role})</span>}
+                  </span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  This action will be recorded under your name in the audit trail.
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label>

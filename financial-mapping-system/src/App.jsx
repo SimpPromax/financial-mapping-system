@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import ProtectedRoute from './components/Common/ProtectedRoute';
 import Layout from './pages/Layout/Layout';
 import Login from './pages/Login/Login';
+import Register from './pages/Login/Register'; // Add this import
 import NotFound from './pages/NotFound/NotFound';
 import Dashboard from './components/Dashboard/Dashboard';
 import TransactionList from './components/Transactions/TransactionList';
@@ -13,12 +14,21 @@ import ViewSavedData from './pages/ExcelFormInitialisation/ViewSavedData';
 import ChartOfAccounts from './pages/MappingPart/ChartOfAccounts';
 import Mapping from './pages/MappingPart/Mapping';
 import Reports from './pages/Reports/Reports';
+import { useAuth } from './hooks/useAuth';
+import DataVisualization from './pages/Visualization/DataVisualization';
+
 function App() {
+
+
+  const { user } = useAuth();
   return (
     <Router>
       <Routes>
+        {/* Public routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} /> {/* Add Register route */}
 
+        {/* Protected routes with Layout wrapper */}
         <Route
           path="/"
           element={
@@ -34,13 +44,13 @@ function App() {
           <Route path="excel-download" element={<ExcelDownload />} />
           <Route path="excelinitialiser" element={<ExcelInitialiser />} />
           <Route path="viewsaveddata" element={<ViewSavedData />} />
-
-          {/* New Routes */}
-          <Route path="chart-of-accounts" element={<ChartOfAccounts />} />
+          <Route path="chart-of-accounts" element={<ChartOfAccounts user={user} />} />
           <Route path="mapping" element={<Mapping />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="data-visualization" element={<DataVisualization />} />
         </Route>
 
+        {/* 404 route */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>

@@ -1,22 +1,29 @@
-// src/components/Sidebar.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  PieChart,
-  List,
-  BarChart3,
-  LogOut,
-  Download,
+  Layout,
+  FileSpreadsheet,
+  TrendingUp,
+  BarChart2,
+  FileDown,
   X,
-  FileText,
-  Eye,
+  FilePlus,
+  FileEdit,
+  FolderOpen,
+  Link as LinkIcon,
+  ListTree,
+  Merge,
+  FileBarChart,
+  LogOut,
   ChevronDown,
+  User,
+  Mail,
+  Shield,
 } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
 
-const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
+const Sidebar = ({ sidebarOpen, setSidebarOpen, onLogout, user }) => {
   const location = useLocation();
-  const { logout, user } = useAuth();
+  const navigate = useNavigate();
 
   const [financialExpanded, setFinancialExpanded] = useState(false);
   const [templateExpanded, setTemplateExpanded] = useState(false);
@@ -84,6 +91,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   const hideTooltip = () => setTooltip((prev) => ({ ...prev, show: false }));
 
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    }
+    setSidebarOpen(false);
+  };
+
   const LargeNotifyDot = () => (
     <div className="relative ml-3 flex items-center">
       <div className="absolute -inset-1 rounded-full bg-red-400 opacity-60 animate-pulse blur-sm" />
@@ -138,10 +152,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         {/* NAVIGATION */}
         <nav className="flex-1 py-4 space-y-1 overflow-y-auto">
           {[
-            { path: '/dashboard', label: 'Dashboard', icon: PieChart },
-            { path: '/transactions', label: 'Transactions', icon: List },
-            { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-            { path: '/excel-download', label: 'Excel Download', icon: Download },
+            { path: '/dashboard', label: 'Dashboard', icon: Layout },
+            { path: '/transactions', label: 'Transactions', icon: FileSpreadsheet },
+            { path: '/analytics', label: 'Analytics', icon: TrendingUp },
+            { path: '/data-visualization', label: 'Data Visualization', icon: BarChart2 },
+            { path: '/excel-download', label: 'Excel Download', icon: FileDown },
           ].map((item) => {
             const IconComp = item.icon;
             const isActive = location.pathname === item.path;
@@ -188,7 +203,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                       : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
                     }`}
                 />
-                <FileText
+                <FilePlus
                   size={20}
                   className="relative z-10 transition-transform duration-200 group-hover:scale-110"
                 />
@@ -223,7 +238,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     }`}
                 >
                   <div className="flex items-center gap-2">
-                    <FileText size={16} />
+                    <FileEdit size={16} />
                     <span>Set Up New Data</span>
                     {unsavedSheetsCount > 0 && <SmallNotifyDot />}
                   </div>
@@ -248,7 +263,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Eye size={16} />
+                    <FolderOpen size={16} />
                     <span>View Saved Data</span>
                   </div>
                 </Link>
@@ -272,7 +287,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                       : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
                     }`}
                 />
-                <FileText
+                <LinkIcon
                   size={20}
                   className="relative z-10 transition-transform duration-200 group-hover:scale-110"
                 />
@@ -295,7 +310,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     }`}
                 >
                   <div className="flex items-center gap-2">
-                    <FileText size={16} />
+                    <ListTree size={16} />
                     <span>Chart of Accounts</span>
                   </div>
                 </Link>
@@ -309,7 +324,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     }`}
                 >
                   <div className="flex items-center gap-2">
-                    <FileText size={16} />
+                    <Merge size={16} />
                     <span>Mapping</span>
                   </div>
                 </Link>
@@ -332,7 +347,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
                 }`}
             />
-            <BarChart3
+            <FileBarChart
               size={20}
               className="relative z-10 transition-transform duration-200 group-hover:scale-110"
             />
@@ -344,21 +359,30 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         <div className="p-6 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+              {user?.fullName?.charAt(0).toUpperCase() ||
+                user?.username?.charAt(0).toUpperCase() ||
+                'U'}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="font-semibold text-gray-900 truncate">
-                {user?.name || 'User'}
+                {user?.fullName || user?.username || 'User'}
               </div>
-              <div className="text-xs text-gray-500 truncate">
+              <div className="text-xs text-gray-500 truncate flex items-center gap-1">
+                <Mail size={10} />
                 {user?.email || ''}
               </div>
+              {user?.role && (
+                <div className="text-xs text-gray-500 truncate flex items-center gap-1 mt-1">
+                  <Shield size={10} />
+                  {user.role}
+                </div>
+              )}
             </div>
           </div>
 
           <button
-            onClick={logout}
-            className="flex items-center gap-2 w-full px-4 py-2 rounded-lg bg-white border hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition"
+            onClick={handleLogout}
+            className="flex items-center gap-2 w-full px-4 py-2 rounded-lg bg-white border hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors duration-200"
           >
             <LogOut size={20} />
             <span>Logout</span>
