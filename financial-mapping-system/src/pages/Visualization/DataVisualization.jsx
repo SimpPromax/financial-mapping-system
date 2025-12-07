@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import * as d3 from 'd3';
 import api from '../../services/api';
 import Swal from 'sweetalert2';
-// Import only valid lucide-react icons
 import {
     Play, Save, Trash2, Copy, Eye, Edit2, X, Search,
     RefreshCw, Download, Maximize2, Database,
@@ -18,8 +17,8 @@ import {
 import {
     generateChart,
     clearChart,
-    exportChartAsSVG,   // ✅ NEW
-    exportChartAsPNG    // ✅ NEW
+    exportChartAsSVG,
+    exportChartAsPNG
 } from '../../utils/VisualizationManager';
 
 // Theme configuration
@@ -58,6 +57,14 @@ const chartTypes = [
     { id: 'scatter', name: 'Scatter Plot', icon: ScatterChart, description: 'Show relationships between numeric variables' },
 ];
 
+// Cache for saved queries (module-level to persist across mounts)
+const queryCache = {
+    data: null,
+    timestamp: 0,
+    loading: false,
+    CACHE_DURATION: 5 * 60 * 1000 // 5 minutes cache
+};
+
 const DataVisualization = () => {
     // State management
     const [activeView, setActiveView] = useState('scripts');
@@ -93,27 +100,129 @@ const DataVisualization = () => {
     const chartRef = useRef(null);
     const fullscreenChartRef = useRef(null);
     const isMountedRef = useRef(true);
-    const loadingQueriesRef = useRef(false);
+    const initialLoadDoneRef = useRef(false);
 
-    // Load saved queries on component mount - Fixed race condition
+    // Load saved queries on component mount - Optimized with cache
     useEffect(() => {
-        isMountedRef.current = true;
-        loadingQueriesRef.current = false;
+        let isActive = true;
         console.log('🚀 Component mounted');
+        isMountedRef.current = true;
+
         const loadInitialQueries = async () => {
-            if (!loadingQueriesRef.current && isMountedRef.current) {
-                loadingQueriesRef.current = true;
-                await loadSavedQueries();
-                loadingQueriesRef.current = false;
+            // Check if we already have cached data that's still valid
+            const now = Date.now();
+            if (queryCache.data && (now - queryCache.timestamp < queryCache.CACHE_DURATION)) {
+                console.log('📦 Using cached queries');
+                if (isActive) {
+                    setSavedQueries(queryCache.data);
+                }
+                return;
+            }
+
+            // Prevent multiple loads
+            if (queryCache.loading || refreshingQueries) {
+                console.log('⏳ Query load already in progress, skipping...');
+                return;
+            }
+
+            queryCache.loading = true;
+            if (isActive) {
+                setRefreshingQueries(true);
+            }
+
+            console.log('🔄 Loading saved queries...');
+
+            try {
+                const response = await api.get('/api/visualization/queries', {
+                    params: { page: 0, size: 50 },
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+
+                if (!isActive) {
+                    console.log('⚠️ Component unmounted, ignoring response');
+                    return;
+                }
+
+                console.log('✅ API Response received');
+
+                // Extract queries from response
+                let queriesData = [];
+                if (response.data?.content && Array.isArray(response.data.content)) {
+                    queriesData = response.data.content;
+                } else if (Array.isArray(response.data)) {
+                    queriesData = response.data;
+                } else if (response.data?.savedQueries && Array.isArray(response.data.savedQueries)) {
+                    queriesData = response.data.savedQueries;
+                }
+
+                // Validate queries
+                const validQueries = queriesData.filter(query =>
+                    query &&
+                    (query.id || query.name) &&
+                    query.sql !== undefined
+                );
+
+                if (isActive) {
+                    setSavedQueries(validQueries);
+                    // Update cache
+                    queryCache.data = validQueries;
+                    queryCache.timestamp = Date.now();
+                    console.log(`✅ Loaded ${validQueries.length} saved queries`);
+                }
+            } catch (error) {
+                if (!isActive) return;
+                console.error('❌ Failed to load saved queries:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Load Failed',
+                    text: `Could not load saved queries: ${error.response?.data?.error || error.message}`,
+                    confirmButtonColor: THEME.colors.danger,
+                });
+                if (isActive) {
+                    setSavedQueries([]);
+                }
+            } finally {
+                if (isActive) {
+                    setRefreshingQueries(false);
+                    queryCache.loading = false;
+                    console.log('✅ Finished loading queries');
+                }
             }
         };
-        loadInitialQueries();
+
+        // Use setTimeout to prevent double calls in React StrictMode
+        const timer = setTimeout(() => {
+            if (!initialLoadDoneRef.current) {
+                loadInitialQueries();
+                initialLoadDoneRef.current = true;
+            }
+        }, 10);
+
         return () => {
-            isMountedRef.current = false;
-            loadingQueriesRef.current = false;
             console.log('🧹 Component unmounted');
+            isActive = false;
+            isMountedRef.current = false;
+            clearTimeout(timer);
         };
     }, []);
+
+    // Keep chartConfig synchronized when editing query
+    useEffect(() => {
+        if (editingQuery && activeView === 'scripts') {
+            // When we're in SQL Scripts view editing a query,
+            // ensure the form shows the correct chart type
+            if (editingQuery.chartType && editingQuery.chartType !== chartConfig.chartType) {
+                // If the query has a different chartType than current config, update it
+                setChartConfig(prev => ({
+                    ...prev,
+                    chartType: editingQuery.chartType
+                }));
+            }
+        }
+    }, [editingQuery, activeView]);
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -138,9 +247,8 @@ const DataVisualization = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [activeView, isDataLoaded, loading, sqlQuery]);
 
-    // Verify SQL query — FIXED: Guard against non-string input
+    // Verify SQL query
     const verifyQuery = async (query = sqlQuery) => {
-        // 🔒 Guard: ensure query is a string
         console.log('Verifying query:', { query, type: typeof query });
         if (typeof query !== 'string') {
             Swal.fire({
@@ -161,19 +269,17 @@ const DataVisualization = () => {
             });
             return false;
         }
-        // Basic SQL validation
         const trimmedQuery = query.trim().toUpperCase();
         if (!trimmedQuery.startsWith('SELECT')) {
             Swal.fire({
                 icon: 'error',
                 title: 'Invalid Query',
                 text: 'Only SELECT queries are allowed for visualization',
-                confirmButtonButtonColor: THEME.colors.danger,
+                confirmButtonColor: THEME.colors.danger,
             });
             setIsValidQuery(false);
             return false;
         }
-        // Check for dangerous keywords
         const dangerousKeywords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'CREATE', 'TRUNCATE'];
         const hasDangerous = dangerousKeywords.some(keyword => trimmedQuery.includes(keyword));
         if (hasDangerous) {
@@ -189,7 +295,6 @@ const DataVisualization = () => {
         setVerifying(true);
         setError('');
         try {
-            // Test query execution with minimal data
             const response = await api.post('/api/visualization/verify', {
                 sql: query,
                 maxRows: 5,
@@ -286,9 +391,7 @@ const DataVisualization = () => {
                     timer: 2000,
                     background: '#f0f9ff',
                 });
-                // Auto-fill chart configuration
                 autoFillChartConfig(data.metadata?.columnInfo || []);
-                // Switch to visualization view if autoNavigate is true
                 if (autoNavigate) {
                     setActiveView('visualization');
                 }
@@ -363,7 +466,6 @@ const DataVisualization = () => {
             const data = response.data;
             if (data.success) {
                 setQueryData(data.data || []);
-                // Generate chart
                 const success = generateChart(
                     chartRef.current,
                     data.data,
@@ -448,11 +550,13 @@ const DataVisualization = () => {
         }));
     };
 
-    // Load saved queries - Fixed race condition
-    const loadSavedQueries = async () => {
+    // Load saved queries - Manual refresh function
+    const loadSavedQueries = useCallback(async () => {
         if (!isMountedRef.current || refreshingQueries) return;
-        console.log('🔄 Loading saved queries...');
+
+        console.log('🔄 Manual refresh: Loading saved queries...');
         setRefreshingQueries(true);
+
         try {
             const response = await api.get('/api/visualization/queries', {
                 params: { page: 0, size: 50 },
@@ -462,9 +566,10 @@ const DataVisualization = () => {
                     'Expires': '0'
                 }
             });
+
             if (!isMountedRef.current) return;
             console.log('✅ API Response received');
-            // Extract queries from response
+
             let queriesData = [];
             if (response.data?.content && Array.isArray(response.data.content)) {
                 queriesData = response.data.content;
@@ -473,31 +578,18 @@ const DataVisualization = () => {
             } else if (response.data?.savedQueries && Array.isArray(response.data.savedQueries)) {
                 queriesData = response.data.savedQueries;
             }
-            // Validate queries
+
             const validQueries = queriesData.filter(query =>
                 query &&
                 (query.id || query.name) &&
                 query.sql !== undefined
             );
+
             if (isMountedRef.current) {
                 setSavedQueries(validQueries);
-                if (validQueries.length > 0) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Queries Loaded',
-                        html: `
-                            <div class="text-left">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <Check className="w-5 h-5 text-green-500" />
-                                    <span class="font-semibold">Loaded ${validQueries.length} saved queries</span>
-                                </div>
-                            </div>
-                        `,
-                        showConfirmButton: false,
-                        timer: 1500,
-                        background: '#f0f9ff',
-                    });
-                }
+                queryCache.data = validQueries;
+                queryCache.timestamp = Date.now();
+                console.log(`✅ Loaded ${validQueries.length} saved queries`);
             }
         } catch (error) {
             if (!isMountedRef.current) return;
@@ -515,7 +607,7 @@ const DataVisualization = () => {
                 console.log('✅ Finished loading queries');
             }
         }
-    };
+    }, [refreshingQueries]);
 
     // Save SQL Only (Quick Save)
     const saveCurrentSqlOnly = async () => {
@@ -589,11 +681,12 @@ const DataVisualization = () => {
                 name: savedQueryName,
                 sql: sqlQuery,
                 description: savedQueryDescription,
-                chartType: chartConfig.chartType,
-                visualizationConfig: JSON.stringify(chartConfig),
+                chartType: chartConfig.chartType,  // Always use current chart type
+                visualizationConfig: JSON.stringify(chartConfig),  // Save full config
                 isPublic: false,
                 isFavorite: false
             });
+
             Swal.fire({
                 icon: 'success',
                 title: 'Query Saved!',
@@ -601,7 +694,7 @@ const DataVisualization = () => {
                     <div class="text-left">
                         <div class="flex items-center gap-2 mb-2">
                             <Save className="w-5 h-5 text-green-500" />
-                            <span class="font-semibold">Query saved successfully!</span>
+                            <span class="font-semibold">Query ${editingQuery ? 'Updated' : 'Saved'} Successfully!</span>
                         </div>
                         <div class="text-sm text-gray-600">
                             <p>Name: <span class="font-semibold">${savedQueryName}</span></p>
@@ -613,11 +706,16 @@ const DataVisualization = () => {
                 timer: 2000,
                 background: '#f0f9ff',
             });
-            // Reset form
+
+            // Reset form and refresh queries
             setSavedQueryName('');
             setSavedQueryDescription('');
             setEditingQuery(null);
             setCreatingNew(false);
+
+            // Refresh the queries list to show updated label
+            await loadSavedQueries();
+
         } catch (error) {
             const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
             Swal.fire({
@@ -640,7 +738,6 @@ const DataVisualization = () => {
             });
             return;
         }
-        // Show loading
         Swal.fire({
             title: 'Loading Query...',
             html: `
@@ -659,9 +756,7 @@ const DataVisualization = () => {
             }
         });
         try {
-            // Set the SQL query — ensure it's a string
             setSqlQuery(typeof query.sql === 'string' ? query.sql : '');
-            // Update chart config from saved query
             if (query.chartType) {
                 setChartConfig(prev => ({
                     ...prev,
@@ -676,7 +771,6 @@ const DataVisualization = () => {
                     console.error('Failed to parse visualization config:', e);
                 }
             }
-            // Verify the query
             const isVerified = await verifyQuery(query.sql);
             if (!isVerified) {
                 Swal.fire({
@@ -687,7 +781,6 @@ const DataVisualization = () => {
                 });
                 return;
             }
-            // Execute the query
             const isExecuted = await executeQuery(query.sql, true);
             if (isExecuted) {
                 Swal.close();
@@ -766,6 +859,8 @@ const DataVisualization = () => {
                     timer: 1500,
                     background: '#f0f9ff',
                 });
+                // Refresh queries list after deletion
+                await loadSavedQueries();
             } catch (error) {
                 const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
                 Swal.fire({
@@ -781,17 +876,36 @@ const DataVisualization = () => {
     const startEditingQuery = (query) => {
         setEditingQuery(query);
         setCreatingNew(false);
-        // ✅ Ensure sqlQuery is always a string
         setSqlQuery(typeof query.sql === 'string' ? query.sql : '');
         setSavedQueryName(query.name || '');
         setSavedQueryDescription(query.description || '');
+
+        // Always parse and set the complete chart config from saved query
         if (query.visualizationConfig) {
             try {
                 const config = JSON.parse(query.visualizationConfig);
-                setChartConfig(prev => ({ ...prev, ...config }));
+                setChartConfig({
+                    chartType: query.chartType || config.chartType || 'bar',
+                    xAxis: config.xAxis || '',
+                    yAxis: config.yAxis || '',
+                    sortData: config.sortData || false,
+                    title: config.title || '',
+                    showLegend: config.showLegend !== undefined ? config.showLegend : true
+                });
             } catch (e) {
                 console.error('Failed to parse visualization config:', e);
+                // Fallback to chartType from query
+                setChartConfig(prev => ({
+                    ...prev,
+                    chartType: query.chartType || 'bar'
+                }));
             }
+        } else if (query.chartType) {
+            // If no visualizationConfig but has chartType
+            setChartConfig(prev => ({
+                ...prev,
+                chartType: query.chartType
+            }));
         }
     };
 
@@ -818,6 +932,15 @@ const DataVisualization = () => {
         setSavedQueryName('');
         setSavedQueryDescription('');
         setIsValidQuery(false);
+        // Reset chart config to default
+        setChartConfig({
+            chartType: 'bar',
+            xAxis: '',
+            yAxis: '',
+            sortData: false,
+            title: '',
+            showLegend: true
+        });
     };
 
     const getColumnOptions = (requireNumeric = false) => {
@@ -946,7 +1069,6 @@ const DataVisualization = () => {
 
     const localStats = calculateLocalStats();
 
-    // ✅ NEW: Use VisualizationManager export utilities
     const handleExportPNG = () => {
         const container = document.getElementById('chart-container-wrapper');
         if (!container) {
@@ -1042,9 +1164,11 @@ const DataVisualization = () => {
                                         </div>
                                         <div>
                                             <h2 className="text-xl font-bold text-gray-900">
-                                                {editingQuery ? 'Edit Query' : creatingNew ? 'Create New Query' : 'SQL Query Editor'}
+                                                {editingQuery ? `Edit Query: ${savedQueryName}` : creatingNew ? 'Create New Query' : 'SQL Query Editor'}
                                             </h2>
-                                            <p className="text-sm text-gray-600">Write and verify your SQL queries</p>
+                                            <p className="text-sm text-gray-600">
+                                                {editingQuery ? `Editing ${chartConfig.chartType} chart configuration` : 'Write and verify your SQL queries'}
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -1150,7 +1274,7 @@ const DataVisualization = () => {
                                         </div>
                                         <p className="text-sm text-gray-600 mb-3">Verify your SQL query syntax and check for tabular data.</p>
                                         <button
-                                            onClick={() => verifyQuery()}  // ✅ CORRECT
+                                            onClick={() => verifyQuery()}
                                             disabled={verifying || !sqlQuery.trim()}
                                             className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 w-full ${verifying || !sqlQuery.trim()
                                                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -1439,13 +1563,28 @@ const DataVisualization = () => {
                                             <p className="text-sm text-gray-600">Customize your visualization</p>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => setActiveView('scripts')}
-                                        className="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1"
-                                    >
-                                        <ChevronLeft className="w-4 h-4" />
-                                        Back to Scripts
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setActiveView('scripts')}
+                                            className="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1"
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                            Back to Scripts
+                                        </button>
+                                        {editingQuery && (
+                                            <button
+                                                onClick={saveQuery}
+                                                disabled={!savedQueryName.trim()}
+                                                className={`text-sm px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${!savedQueryName.trim()
+                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                                    }`}
+                                            >
+                                                <Save className="w-4 h-4" />
+                                                Save Changes
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             <div className="p-6">
@@ -1668,7 +1807,7 @@ const DataVisualization = () => {
                                                 Fullscreen (F)
                                             </button>
                                             <button
-                                                onClick={handleExportPNG} // ✅ Updated
+                                                onClick={handleExportPNG}
                                                 className="px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg transition-colors flex items-center gap-2"
                                             >
                                                 <Download className="w-4 h-4" />
@@ -1680,7 +1819,6 @@ const DataVisualization = () => {
                             </div>
                             {/* Chart Display Area */}
                             <div className="p-6">
-                                {/* ✅ Added ID to container */}
                                 <div className="relative min-h-[500px] rounded-lg border-2 border-gray-100 bg-gray-50">
                                     <div ref={chartRef} id="chart-container-wrapper" className="chart-container" />
                                     {/* Empty State */}
@@ -1770,14 +1908,14 @@ const DataVisualization = () => {
                             </div>
                             <div className="flex items-center gap-3">
                                 <button
-                                    onClick={handleExportPNG} // ✅ Updated
+                                    onClick={handleExportPNG}
                                     className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
                                 >
                                     <Download className="w-4 h-4" />
                                     PNG
                                 </button>
                                 <button
-                                    onClick={handleExportSVG} // ✅ Updated
+                                    onClick={handleExportSVG}
                                     className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors flex items-center gap-2"
                                 >
                                     <Download className="w-4 h-4" />

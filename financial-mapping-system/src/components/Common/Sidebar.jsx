@@ -114,6 +114,20 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, onLogout, user }) => {
     </div>
   );
 
+  // Navigation items array — "Data Visualization" marked as premium for Pro badge
+  const navItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: Layout },
+    { path: '/transactions', label: 'Transactions', icon: FileSpreadsheet, },
+    { path: '/analytics', label: 'Analytics', icon: TrendingUp, premium: true },
+    {
+      path: '/data-visualization',
+      label: 'Data Visualization',
+      icon: BarChart2,
+      premium: true // only used to show "Pro" badge
+    },
+    { path: '/excel-download', label: 'Excel Download', icon: FileDown },
+  ];
+
   return (
     <div>
       {sidebarOpen && (
@@ -151,37 +165,41 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, onLogout, user }) => {
 
         {/* NAVIGATION */}
         <nav className="flex-1 py-4 space-y-1 overflow-y-auto">
-          {[
-            { path: '/dashboard', label: 'Dashboard', icon: Layout },
-            { path: '/transactions', label: 'Transactions', icon: FileSpreadsheet },
-            { path: '/analytics', label: 'Analytics', icon: TrendingUp },
-            { path: '/data-visualization', label: 'Data Visualization', icon: BarChart2 },
-            { path: '/excel-download', label: 'Excel Download', icon: FileDown },
-          ].map((item) => {
+          {/* Main Navigation Items */}
+          {navItems.map((item) => {
             const IconComp = item.icon;
             const isActive = location.pathname === item.path;
+            const isPremium = item.premium;
 
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`group flex items-center gap-3 px-6 py-3 mx-2 rounded-lg relative overflow-hidden transition-all duration-300 ${isActive
-                    ? 'text-white font-semibold'
-                    : 'text-gray-600 hover:text-gray-800'
+                className={`group flex items-center gap-3 px-6 py-3 mx-2 rounded-lg relative transition-all duration-300 ${isActive
+                  ? 'text-white font-semibold'
+                  : 'text-gray-600 hover:text-gray-800'
                   }`}
               >
+                {/* Background highlight */}
                 <span
                   className={`absolute inset-y-0 left-2 right-2 rounded-lg transition-all duration-300 ${isActive
-                      ? 'bg-blue-600 scale-100'
-                      : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
+                    ? 'bg-blue-600 scale-100'
+                    : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
                     }`}
                 />
                 <IconComp
                   size={20}
                   className="relative z-10 transition-transform duration-200 group-hover:scale-110"
                 />
-                <span className="relative z-10">{item.label}</span>
+                <span className="relative z-10 flex-1">{item.label}</span>
+
+                {/* Pro badge — only for premium items */}
+                {isPremium && (
+                  <span className="relative z-10 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
+                    Pro
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -190,17 +208,17 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, onLogout, user }) => {
           <div className="relative">
             <button
               onClick={() => setTemplateExpanded(!templateExpanded)}
-              className={`group flex items-center justify-between w-full px-6 py-3 mx-2 rounded-lg relative overflow-hidden transition-all duration-300 ${isTemplateActive
-                  ? 'text-white font-semibold'
-                  : 'text-gray-600 hover:text-gray-800'
+              className={`group flex items-center justify-between w-full px-6 py-3 mx-2 rounded-lg relative transition-all duration-300 ${isTemplateActive
+                ? 'text-white font-semibold'
+                : 'text-gray-600 hover:text-gray-800'
                 }`}
               aria-expanded={templateExpanded}
             >
               <span className="flex items-center gap-3 flex-1">
                 <span
                   className={`absolute inset-y-0 left-2 right-2 rounded-lg transition-all duration-300 ${isTemplateActive
-                      ? 'bg-blue-600 scale-100'
-                      : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
+                    ? 'bg-blue-600 scale-100'
+                    : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
                     }`}
                 />
                 <FilePlus
@@ -233,8 +251,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, onLogout, user }) => {
                   }
                   onMouseLeave={hideTooltip}
                   className={`block px-4 py-2 rounded hover:bg-gray-100 relative ${location.pathname.startsWith('/excelinitialiser')
-                      ? 'font-semibold text-blue-600'
-                      : 'text-gray-700'
+                    ? 'font-semibold text-blue-600'
+                    : 'text-gray-700'
                     }`}
                 >
                   <div className="flex items-center gap-2">
@@ -258,8 +276,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, onLogout, user }) => {
                   }
                   onMouseLeave={hideTooltip}
                   className={`block px-4 py-2 rounded hover:bg-gray-100 ${location.pathname.startsWith('/viewsaveddata')
-                      ? 'font-semibold text-blue-600'
-                      : 'text-gray-700'
+                    ? 'font-semibold text-blue-600'
+                    : 'text-gray-700'
                     }`}
                 >
                   <div className="flex items-center gap-2">
@@ -275,16 +293,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, onLogout, user }) => {
           <div className="relative">
             <button
               onClick={() => setFinancialExpanded(!financialExpanded)}
-              className={`group flex items-center justify-between w-full px-6 py-3 mx-2 rounded-lg relative overflow-hidden transition-all duration-300 ${isFinancialActive
-                  ? 'text-white font-semibold'
-                  : 'text-gray-600 hover:text-gray-800'
+              className={`group flex items-center justify-between w-full px-6 py-3 mx-2 rounded-lg relative transition-all duration-300 ${isFinancialActive
+                ? 'text-white font-semibold'
+                : 'text-gray-600 hover:text-gray-800'
                 }`}
             >
               <span className="flex items-center gap-3 flex-1">
                 <span
                   className={`absolute inset-y-0 left-2 right-2 rounded-lg transition-all duration-300 ${isFinancialActive
-                      ? 'bg-blue-600 scale-100'
-                      : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
+                    ? 'bg-blue-600 scale-100'
+                    : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
                     }`}
                 />
                 <LinkIcon
@@ -305,8 +323,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, onLogout, user }) => {
                   to="/chart-of-accounts"
                   onClick={() => setSidebarOpen(false)}
                   className={`block px-4 py-2 rounded hover:bg-gray-100 ${location.pathname.startsWith('/chart-of-accounts')
-                      ? 'font-semibold text-blue-600'
-                      : 'text-gray-700'
+                    ? 'font-semibold text-blue-600'
+                    : 'text-gray-700'
                     }`}
                 >
                   <div className="flex items-center gap-2">
@@ -319,8 +337,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, onLogout, user }) => {
                   to="/mapping"
                   onClick={() => setSidebarOpen(false)}
                   className={`block px-4 py-2 rounded hover:bg-gray-100 ${location.pathname.startsWith('/mapping')
-                      ? 'font-semibold text-blue-600'
-                      : 'text-gray-700'
+                    ? 'font-semibold text-blue-600'
+                    : 'text-gray-700'
                     }`}
                 >
                   <div className="flex items-center gap-2">
@@ -332,19 +350,19 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, onLogout, user }) => {
             )}
           </div>
 
-          {/* ⭐ REPORTS — STANDALONE BELOW FINANCIAL MAPPING */}
+          {/* REPORTS — STANDALONE BELOW FINANCIAL MAPPING */}
           <Link
             to="/reports"
             onClick={() => setSidebarOpen(false)}
-            className={`group flex items-center gap-3 px-6 py-3 mx-2 rounded-lg relative overflow-hidden transition-all duration-300 ${location.pathname.startsWith('/reports')
-                ? 'text-white font-semibold'
-                : 'text-gray-600 hover:text-gray-800'
+            className={`group flex items-center gap-3 px-6 py-3 mx-2 rounded-lg relative transition-all duration-300 ${location.pathname.startsWith('/reports')
+              ? 'text-white font-semibold'
+              : 'text-gray-600 hover:text-gray-800'
               }`}
           >
             <span
               className={`absolute inset-y-0 left-2 right-2 rounded-lg transition-all duration-300 ${location.pathname.startsWith('/reports')
-                  ? 'bg-blue-600 scale-100'
-                  : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
+                ? 'bg-blue-600 scale-100'
+                : 'bg-blue-600 scale-0 group-hover:scale-100 opacity-20'
                 }`}
             />
             <FileBarChart
