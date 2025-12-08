@@ -7,6 +7,7 @@ import "prismjs/components/prism-sql";
 import "prismjs/themes/prism-tomorrow.css";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
+import { useAuth } from '../../hooks/useAuth';
 
 // Constants
 const INITIAL_SQL = "-- Write SQL here\nSELECT * FROM table_name;";
@@ -48,8 +49,9 @@ const DANGEROUS_SQL_PATTERNS = [
   /\/\*.*\*\//gs,
 ];
 
-const ChartOfAccounts = ({ user }) => {
+const ChartOfAccounts = () => {
   // Use the user prop passed from App.jsx
+  const { user } = useAuth();
   const currentUser = user || {
     username: "admin",
     fullName: "Administrator",

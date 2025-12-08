@@ -59,20 +59,6 @@ const Login = () => {
     }
   };
 
-  const handleDemoLogin = async () => {
-    // Using demo credentials
-    setFormData({
-      username: 'demo',
-      password: 'demo123'
-    });
-
-    // Optionally auto-submit after setting demo credentials
-    // const result = await login('demo', 'demo123');
-    // if (!result.success) {
-    //   setError('Demo login failed. Please contact administrator.');
-    // }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 px-4 py-8">
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-100">
@@ -132,6 +118,7 @@ const Login = () => {
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200 disabled:opacity-50"
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={isLoading}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -176,20 +163,6 @@ const Login = () => {
         </form>
 
         <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-          <button
-            type="button"
-            className="w-full border border-gray-300 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-50 transition-all duration-200 mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={handleDemoLogin}
-            disabled={isLoading}
-          >
-            Use Demo Credentials
-          </button>
-          <p className="text-sm text-gray-500">
-            Demo: username: demo, password: demo123
-          </p>
-        </div>
-
-        <div className="mt-6 text-center">
           <p className="text-gray-600">
             Don't have an account?{' '}
             <Link
