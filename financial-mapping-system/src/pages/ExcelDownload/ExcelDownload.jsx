@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import api from '../../services/api';
 import { Upload, FileText, RefreshCw, Trash2, Book, File } from 'lucide-react';
@@ -10,7 +10,10 @@ const ExcelDownload = () => {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
 
-
+  // Load uploaded files on first render
+  useEffect(() => {
+    loadUploadedFiles();
+  }, []);
 
   // SweetAlert helpers
   const showError = (title, text) => {
@@ -21,18 +24,36 @@ const ExcelDownload = () => {
     Swal.fire({ icon: 'success', title, text, confirmButtonText: 'OK' });
   };
 
+  // FILE SELECT + DUPLICATE CHECK
   const handleFileSelect = (file) => {
     if (!file) return;
+
     const validExtensions = ['.xlsx', '.xls'];
     const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
     if (!validExtensions.includes(fileExt)) {
       showError('Invalid File Type', `"${fileExt}" files are not allowed. Please select an Excel file.`);
       return;
     }
+
     if (file.size > 10 * 1024 * 1024) {
       showError('File Too Large', 'Maximum file size is 10MB. Please select a smaller file.');
       return;
     }
+
+    // 🚫 DUPLICATE NAME CHECK
+    const fileExists = uploadedFiles.some(
+      (uploaded) => uploaded.fileName.toLowerCase() === file.name.toLowerCase()
+    );
+
+    if (fileExists) {
+      showError(
+        'Duplicate File',
+        `"${file.name}" already exists. Please rename the file before uploading.`
+      );
+      return;
+    }
+
     setSelectedFile(file);
   };
 
@@ -138,6 +159,7 @@ const ExcelDownload = () => {
         {/* Card */}
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden">
           <div className="p-5 sm:p-8">
+
             {/* Tabs */}
             <div className="flex border-b border-gray-200 mb-6">
               <button

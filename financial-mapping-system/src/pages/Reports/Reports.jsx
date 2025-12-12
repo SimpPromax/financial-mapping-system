@@ -447,14 +447,14 @@ const Reports = () => {
                                 <div className={`p-3 ${fileType.bg} rounded-xl shadow-sm`}>
                                     <span className="text-2xl">{fileType.icon}</span>
                                 </div>
-                                <div className="flex-1">
-                                    <h2 className="text-xl font-bold text-gray-900">
+                                <div className="flex-1 min-w-0">
+                                    <h2 className="text-xl font-bold text-gray-900 truncate">
                                         Generate Report
                                     </h2>
-                                    <p className="text-gray-600 mt-1 text-sm font-medium">
+                                    <p className="text-gray-600 mt-1 text-sm font-medium truncate">
                                         {selectedSheet.name}
                                     </p>
-                                    <p className="text-gray-500 text-xs mt-1">
+                                    <p className="text-gray-500 text-xs mt-1 truncate">
                                         File: {selectedSheet.fileName}
                                     </p>
                                 </div>
@@ -464,7 +464,7 @@ const Reports = () => {
                                     setShowDateModal(false);
                                     setSelectedSheet(null);
                                 }}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600 flex-shrink-0"
                             >
                                 <X size={20} />
                             </button>
@@ -524,7 +524,7 @@ const Reports = () => {
                             onClick={handleDownloadConfirm}
                             className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg flex items-center"
                         >
-                            <Download size={18} className="mr-2" />
+                            <Download size={18} className="mr-2 flex-shrink-0" />
                             Generate Report
                         </button>
                     </div>
@@ -566,24 +566,24 @@ const Reports = () => {
                     <div className="p-6 border-b border-gray-200/50">
                         <div className="flex justify-between items-start">
                             <div className="flex items-start space-x-4">
-                                <div className="p-3 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl shadow-sm">
+                                <div className="p-3 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl shadow-sm flex-shrink-0">
                                     <FileSpreadsheet size={24} className="text-blue-600" />
                                 </div>
-                                <div>
-                                    <h2 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                                <div className="min-w-0">
+                                    <h2 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent truncate">
                                         Report Preview
                                     </h2>
                                     <div className="flex items-center space-x-3 mt-2">
-                                        <p className="text-gray-700 font-medium">
+                                        <p className="text-gray-700 font-medium truncate">
                                             {sheet.name}
                                         </p>
-                                        <span className="text-gray-400">•</span>
-                                        <p className="text-gray-600">
+                                        <span className="text-gray-400 flex-shrink-0">•</span>
+                                        <p className="text-gray-600 truncate">
                                             {startDate} to {endDate}
                                         </p>
                                     </div>
                                     {sheet.fileName && (
-                                        <p className="text-sm text-gray-500 mt-1 bg-gray-50/50 px-3 py-1 rounded-lg inline-block">
+                                        <p className="text-sm text-gray-500 mt-1 bg-gray-50/50 px-3 py-1 rounded-lg inline-block truncate max-w-full">
                                             Template: {sheet.fileName}
                                         </p>
                                     )}
@@ -591,7 +591,7 @@ const Reports = () => {
                             </div>
                             <button
                                 onClick={closePreview}
-                                className="p-2 hover:bg-gray-100/50 rounded-xl transition-all duration-200 text-gray-400 hover:text-gray-600"
+                                className="p-2 hover:bg-gray-100/50 rounded-xl transition-all duration-200 text-gray-400 hover:text-gray-600 flex-shrink-0"
                             >
                                 <X size={24} />
                             </button>
@@ -617,7 +617,7 @@ const Reports = () => {
                     </div>
 
                     {/* Data Table */}
-                    <div className="flex-1 overflow-y-auto p-6">
+                    <div className="flex-1 overflow-y-auto p-6 min-h-0">
                         <div className="overflow-x-auto rounded-xl border border-gray-200/50 shadow-sm">
                             <table className="w-full">
                                 <thead>
@@ -643,12 +643,12 @@ const Reports = () => {
                                                 className="hover:bg-gray-50/50 transition-colors duration-150"
                                             >
                                                 <td className="px-6 py-3 whitespace-nowrap">
-                                                    <span className="font-mono text-sm bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
+                                                    <span className="font-mono text-sm bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 block truncate max-w-xs">
                                                         {cell}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-3">
-                                                    <span className="font-mono text-gray-800">
+                                                <td className="px-6 py-3 min-w-0">
+                                                    <span className="font-mono text-gray-800 block truncate max-w-md">
                                                         {value === null || value === undefined ? 'N/A' :
                                                             typeof value === 'number'
                                                                 ? value.toLocaleString('en-US', { minimumFractionDigits: 2 })
@@ -656,7 +656,7 @@ const Reports = () => {
                                                         }
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-3">
+                                                <td className="px-6 py-3 whitespace-nowrap">
                                                     <span className={`px-3 py-1.5 text-xs font-semibold rounded-full ${isError
                                                         ? 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200'
                                                         : 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border border-green-200'
@@ -694,7 +694,7 @@ const Reports = () => {
                             }}
                             className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg flex items-center"
                         >
-                            <Download size={18} className="mr-2" />
+                            <Download size={18} className="mr-2 flex-shrink-0" />
                             Generate Full Report
                         </button>
                     </div>
@@ -711,70 +711,71 @@ const Reports = () => {
         const extension = sheet.fileExtension ? sheet.fileExtension.toUpperCase() : 'XLSX';
 
         return (
-            <div key={sheet.id || sheet.name} className="group">
-                <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
+            <div key={sheet.id || sheet.name} className="group h-full">
+                <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col min-h-0">
                     {/* Card Header */}
-                    <div className="p-6">
-                        <div className="flex items-start justify-between">
-                            <div className="flex items-start space-x-3">
-                                <div className={`p-3 ${fileType.bg} rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300`}>
-                                    <span className="text-2xl">{fileType.icon}</span>
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="font-bold text-gray-900 text-lg mb-2 line-clamp-1">
-                                        {sheet.name || 'Unnamed Sheet'}
-                                    </h3>
-                                    <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-                                        <Calendar size={14} className="flex-shrink-0" />
-                                        <span className="truncate">Updated: {formatDate(sheet.uploadDate)}</span>
-                                    </div>
-                                    {sheet.fileName && (
-                                        <div className="text-xs text-gray-500 truncate bg-gray-50/50 px-2 py-1 rounded-lg">
-                                            {sheet.fileName}
-                                        </div>
-                                    )}
-                                </div>
+                    <div className="p-6 flex-1 min-h-0 flex flex-col">
+                        {/* Top section with icon and status */}
+                        <div className="flex items-start justify-between mb-4">
+                            <div className={`p-3 ${fileType.bg} rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300 flex-shrink-0`}>
+                                <span className="text-2xl">{fileType.icon}</span>
                             </div>
-                            <div className="flex flex-col items-end space-y-2">
-                                <span className={`px-3 py-1 text-xs font-medium rounded-full ${sheet.fileExists
+                            <div className="flex flex-col items-end gap-2 flex-shrink-0 ml-2">
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${sheet.fileExists
                                     ? 'bg-gradient-to-r from-green-100 to-green-50 text-green-700 border border-green-200'
                                     : 'bg-gradient-to-r from-red-100 to-red-50 text-red-700 border border-red-200'
-                                    }`}>
+                                    } whitespace-nowrap`}>
                                     {sheet.fileExists ? 'Available' : 'Missing'}
                                 </span>
-                                <span className="px-3 py-1 text-xs bg-gradient-to-r from-gray-100 to-gray-50 text-gray-600 rounded-lg border border-gray-200 font-medium">
+                                <span className="px-2 py-1 text-xs bg-gradient-to-r from-gray-100 to-gray-50 text-gray-600 rounded-lg border border-gray-200 font-medium whitespace-nowrap">
                                     {extension}
                                 </span>
                             </div>
                         </div>
 
-                        {/* File Info */}
-                        <div className="mt-6 space-y-3">
+                        {/* Sheet name with proper truncation */}
+                        <div className="mb-4 flex-1 min-h-0">
+                            <h3 className="font-bold text-gray-900 text-lg mb-2 line-clamp-2 min-h-[2.5rem] leading-tight">
+                                {sheet.name || 'Unnamed Sheet'}
+                            </h3>
+                            <div className="flex items-center text-sm text-gray-600 mb-2">
+                                <Calendar size={14} className="flex-shrink-0 mr-2" />
+                                <span className="truncate">Updated: {formatDate(sheet.uploadDate)}</span>
+                            </div>
+                            {sheet.fileName && (
+                                <div className="text-xs text-gray-500 line-clamp-1 bg-gray-50/50 px-3 py-2 rounded-lg mt-2">
+                                    <span className="font-medium truncate block">Template: {sheet.fileName}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* File Info - Fixed height section */}
+                        <div className="space-y-3 mt-auto">
                             <div className="flex justify-between items-center bg-gray-50/50 p-3 rounded-xl">
-                                <span className="text-sm text-gray-600">File Size:</span>
-                                <span className="font-medium text-gray-800">{formatFileSize(sheet.fileSize)}</span>
+                                <span className="text-sm text-gray-600 truncate mr-2">File Size:</span>
+                                <span className="font-medium text-gray-800 whitespace-nowrap text-sm">{formatFileSize(sheet.fileSize)}</span>
                             </div>
                             <div className="flex justify-between items-center bg-gray-50/50 p-3 rounded-xl">
-                                <span className="text-sm text-gray-600">Type:</span>
-                                <span className="font-medium text-gray-800">{sheet.isWorkbook ? 'Workbook' : 'Worksheet'}</span>
+                                <span className="text-sm text-gray-600 truncate mr-2">Type:</span>
+                                <span className="font-medium text-gray-800 whitespace-nowrap text-sm">{sheet.isWorkbook ? 'Workbook' : 'Worksheet'}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Card Footer - Actions */}
-                    <div className="p-6 pt-4 border-t border-gray-200/50 bg-gradient-to-r from-gray-50/50 to-gray-100/30">
+                    <div className="p-6 pt-4 border-t border-gray-200/50 bg-gradient-to-r from-gray-50/50 to-gray-100/30 flex-shrink-0">
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => handlePreview(sheet)}
                                 disabled={previewLoading}
-                                className="flex items-center justify-center space-x-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 disabled:opacity-50 font-medium"
+                                className="flex items-center justify-center space-x-2 px-3 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 disabled:opacity-50 font-medium text-sm min-w-0"
                             >
                                 {previewLoading ? (
-                                    <RefreshCw className="animate-spin" size={18} />
+                                    <RefreshCw className="animate-spin flex-shrink-0" size={16} />
                                 ) : (
                                     <>
-                                        <Eye size={18} />
-                                        <span>Preview</span>
+                                        <Eye size={16} className="flex-shrink-0" />
+                                        <span className="truncate">Preview</span>
                                     </>
                                 )}
                             </button>
@@ -782,17 +783,17 @@ const Reports = () => {
                             <button
                                 onClick={() => handleDownloadClick(sheet)}
                                 disabled={downloading[sheet.name] || !sheet.fileExists}
-                                className={`flex items-center justify-center space-x-2 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${sheet.fileExists
+                                className={`flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl transition-all duration-200 font-medium text-sm min-w-0 ${sheet.fileExists
                                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 hover:shadow-md'
                                     : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-400 cursor-not-allowed'
                                     } disabled:opacity-50`}
                             >
                                 {downloading[sheet.name] ? (
-                                    <RefreshCw className="animate-spin" size={18} />
+                                    <RefreshCw className="animate-spin flex-shrink-0" size={16} />
                                 ) : (
                                     <>
-                                        <Download size={18} />
-                                        <span>Download</span>
+                                        <Download size={16} className="flex-shrink-0" />
+                                        <span className="truncate">Download</span>
                                     </>
                                 )}
                             </button>
@@ -808,24 +809,24 @@ const Reports = () => {
             {/* Header */}
             <div className="max-w-7xl mx-auto mb-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-4xl font-bold text-gray-900 mb-2 bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">
+                    <div className="min-w-0">
+                        <h1 className="text-4xl font-bold text-gray-900 mb-2 bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent truncate">
                             Excel Reports
                         </h1>
-                        <p className="text-gray-600 text-lg">
+                        <p className="text-gray-600 text-lg truncate">
                             Generate Excel reports with live data from your database
                         </p>
                     </div>
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-4 flex-shrink-0">
                         <button
                             onClick={fetchExcelSheets}
-                            className="flex items-center space-x-2 px-5 py-2.5 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium shadow-sm hover:shadow"
+                            className="flex items-center space-x-2 px-5 py-2.5 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium shadow-sm hover:shadow flex-shrink-0"
                         >
-                            <RefreshCw size={20} />
-                            <span>Refresh</span>
+                            <RefreshCw size={20} className="flex-shrink-0" />
+                            <span className="truncate">Refresh</span>
                         </button>
-                        <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-                            <span className="text-sm font-medium text-blue-700">
+                        <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 flex-shrink-0">
+                            <span className="text-sm font-medium text-blue-700 whitespace-nowrap">
                                 {excelSheets.length} sheets available
                             </span>
                         </div>
@@ -839,9 +840,9 @@ const Reports = () => {
                     <div className="sticky top-4 z-40 bg-gradient-to-r from-white/95 to-gray-50/95 backdrop-blur-lg rounded-xl shadow-lg border border-gray-200/50 p-3 md:p-4 transition-all duration-200">
                         <div className="flex flex-col md:flex-row gap-3">
                             {/* Search */}
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 flex-shrink-0" size={18} />
                                     <input
                                         type="text"
                                         placeholder="Search by sheet name, filename, or extension..."
@@ -856,16 +857,16 @@ const Reports = () => {
                             </div>
 
                             {/* Sort and Items Per Page - Compact */}
-                            <div className="flex items-center space-x-3">
+                            <div className="flex items-center space-x-3 flex-shrink-0">
                                 <div className="relative">
-                                    <SortAsc className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                                    <SortAsc className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 flex-shrink-0" size={16} />
                                     <select
                                         value={sortBy}
                                         onChange={(e) => {
                                             setSortBy(e.target.value);
                                             setCurrentPage(1);
                                         }}
-                                        className="pl-8 pr-6 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm bg-white/90 text-sm appearance-none"
+                                        className="pl-8 pr-6 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm bg-white/90 text-sm appearance-none min-w-[140px]"
                                     >
                                         <option value="name">Sort by Name</option>
                                         <option value="date">Sort by Date</option>
@@ -874,14 +875,14 @@ const Reports = () => {
                                 </div>
 
                                 <div className="relative">
-                                    <Filter className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                                    <Filter className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 flex-shrink-0" size={16} />
                                     <select
                                         value={itemsPerPage}
                                         onChange={(e) => {
                                             setItemsPerPage(Number(e.target.value));
                                             setCurrentPage(1);
                                         }}
-                                        className="pl-8 pr-6 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm bg-white/90 text-sm appearance-none"
+                                        className="pl-8 pr-6 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm bg-white/90 text-sm appearance-none min-w-[120px]"
                                     >
                                         <option value="6">6 per page</option>
                                         <option value="9">9 per page</option>
@@ -916,7 +917,7 @@ const Reports = () => {
                                 minHeight: '400px'
                             }}
                         >
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4 auto-rows-fr">
                                 {currentSheets.map(renderSheetCard)}
                             </div>
 
@@ -928,7 +929,7 @@ const Reports = () => {
                         {filteredSheets.length > itemsPerPage && (
                             <div className="sticky bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-6 pb-4 mt-4">
                                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                                    <div className="text-sm text-gray-600 bg-gray-50/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-gray-200/50">
+                                    <div className="text-sm text-gray-600 bg-gray-50/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-gray-200/50 whitespace-nowrap">
                                         Showing {startIndex + 1} to {Math.min(endIndex, filteredSheets.length)} of {filteredSheets.length} sheets
                                     </div>
 
@@ -936,14 +937,14 @@ const Reports = () => {
                                         <button
                                             onClick={() => setCurrentPage(1)}
                                             disabled={currentPage === 1}
-                                            className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all duration-200"
+                                            className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all duration-200 flex-shrink-0"
                                         >
                                             <ChevronsLeft size={18} />
                                         </button>
                                         <button
                                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                             disabled={currentPage === 1}
-                                            className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all duration-200"
+                                            className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all duration-200 flex-shrink-0"
                                         >
                                             <ChevronLeft size={18} />
                                         </button>
@@ -965,7 +966,7 @@ const Reports = () => {
                                                     <button
                                                         key={pageNum}
                                                         onClick={() => setCurrentPage(pageNum)}
-                                                        className={`w-8 h-8 rounded-lg transition-all duration-200 font-medium text-sm ${currentPage === pageNum
+                                                        className={`w-8 h-8 rounded-lg transition-all duration-200 font-medium text-sm flex-shrink-0 ${currentPage === pageNum
                                                             ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
                                                             : 'border border-gray-300 hover:bg-gray-50'
                                                             }`}
@@ -979,14 +980,14 @@ const Reports = () => {
                                         <button
                                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                             disabled={currentPage === totalPages}
-                                            className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all duration-200"
+                                            className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all duration-200 flex-shrink-0"
                                         >
                                             <ChevronRight size={18} />
                                         </button>
                                         <button
                                             onClick={() => setCurrentPage(totalPages)}
                                             disabled={currentPage === totalPages}
-                                            className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all duration-200"
+                                            className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all duration-200 flex-shrink-0"
                                         >
                                             <ChevronsRight size={18} />
                                         </button>
@@ -998,7 +999,7 @@ const Reports = () => {
                 ) : initialLoadComplete && (
                     <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200/50 p-16 text-center">
                         <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                            <FileSpreadsheet className="text-blue-600" size={48} />
+                            <FileSpreadsheet className="text-blue-600 flex-shrink-0" size={48} />
                         </div>
                         <h3 className="text-2xl font-bold text-gray-900 mb-3">
                             {searchTerm

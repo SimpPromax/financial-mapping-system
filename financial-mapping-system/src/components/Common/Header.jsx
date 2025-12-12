@@ -89,7 +89,7 @@ const Header = ({ setSidebarOpen, onLogout, user }) => {
           </button>
 
           <Wallet size={32} className="text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-900">Financial Mapping System</h1>
+          <h1 className="text-2xl font-bold text-gray-900">SACCO financial data management system</h1>
         </div>
 
         <div className="flex items-center gap-4">
