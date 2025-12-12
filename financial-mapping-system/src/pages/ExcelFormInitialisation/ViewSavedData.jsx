@@ -27,7 +27,7 @@ const ViewSavedData = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get('/api/excel/data');
+      const response = await api.get('/api/excel/sheets');
 
       if (Array.isArray(response.data)) {
         setSheets(response.data);
@@ -305,7 +305,7 @@ const ViewSavedData = () => {
               className={`px-3.5 py-1.5 text-sm font-medium rounded-lg border transition ${currentPage === 1
                 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                 : 'bg-white/0 text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400'
-              }`}
+                }`}
             >
               Prev
             </button>
@@ -318,7 +318,7 @@ const ViewSavedData = () => {
                 className={`px-3.5 py-1.5 text-sm font-medium rounded-lg border transition ${currentPage === page
                   ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white/0 text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400'
-                }`}
+                  }`}
               >
                 {page}
               </button>
@@ -331,7 +331,7 @@ const ViewSavedData = () => {
               className={`px-3.5 py-1.5 text-sm font-medium rounded-lg border transition ${currentPage === totalPages
                 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                 : 'bg-white/0 text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400'
-              }`}
+                }`}
             >
               Next
             </button>

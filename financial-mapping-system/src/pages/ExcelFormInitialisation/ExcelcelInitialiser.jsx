@@ -114,9 +114,9 @@ const ExcelDataCollector = () => {
     updateUnsavedSheetsCount();
   }, [sheetUnsavedStatus]);
 
-  // Load available file names and element counts on component mount
+  // Load sheets from backend API
   useEffect(() => {
-    const loadExcelFilesAndCounts = async () => {
+    const loadSheetsFromBackend = async () => {
       // Only load from server if we don't have saved data
       if (hasLoadedInitialData && sheets.length > 0) {
         return;
@@ -124,83 +124,73 @@ const ExcelDataCollector = () => {
 
       try {
         setIsLoading(true);
-        const filesResponse = await api.get('/api/excel/files');
-        const fileNames = Array.isArray(filesResponse.data)
-          ? filesResponse.data.map(file => file.fileName).filter(Boolean)
-          : ['financial-report.xlsx', 'sales-data.xlsx', 'inventory-list.xlsx'];
 
-        setAvailableSheetNames(fileNames);
+        // 1. Load all sheets from backend
+        const sheetsResponse = await api.get('/api/excel/sheets');
+        const backendSheets = Array.isArray(sheetsResponse.data) ? sheetsResponse.data : [];
 
-        const countsResponse = await api.get('/api/excel/all-counts');
-        const countsMap = countsResponse.data || {};
+        console.log('📊 Loaded sheets from backend:', backendSheets);
 
-        console.log('🔢 Loaded element counts:', countsMap);
-
-        const initialSheets = fileNames.map((fileName, index) => ({
-          id: `sheet-${index}`,
-          sheetName: fileName,
-          elements: [],
-          headerText: fileName.replace('.xlsx', '').split('-').map(word =>
-            word.charAt(0).toUpperCase() + word.slice(1)
-          ).join(' '),
-          elementCount: countsMap[fileName] || 0
+        // Transform backend data to frontend format
+        const transformedSheets = backendSheets.map(sheet => ({
+          id: sheet.sheetId,
+          sheetName: sheet.excellSheetName,
+          headerText: sheet.excellSheetName,
+          elementCount: sheet.excelElements?.length || 0
         }));
 
-        setSheets(initialSheets);
+        setSheets(transformedSheets);
+
+        // Load element counts
+        const countsResponse = await api.get('/api/excel/all-counts');
+        const countsMap = countsResponse.data || {};
         setSheetElementCounts(countsMap);
 
-        // Initialize sheet data storage only if we don't have saved data
-        if (!savedState) {
-          const initialSheetDataObj = {};
-          const sheetDataObj = {};
-          initialSheets.forEach(sheet => {
-            initialSheetDataObj[sheet.id] = {
-              elements: [],
-              lastLoaded: null
-            };
-            sheetDataObj[sheet.id] = {
-              elements: [],
-              lastLoaded: null
-            };
-          });
-          setInitialSheetData(initialSheetDataObj);
-          setSheetData(sheetDataObj);
-        }
+        // Initialize sheet data storage
+        const initialSheetDataObj = {};
+        const sheetDataObj = {};
 
-        if (initialSheets.length > 0 && !selectedSheetId) {
-          setSelectedSheetId(initialSheets[0].id);
+        transformedSheets.forEach(sheet => {
+          initialSheetDataObj[sheet.id] = {
+            elements: [],
+            lastLoaded: null
+          };
+          sheetDataObj[sheet.id] = {
+            elements: [],
+            lastLoaded: null
+          };
+        });
+
+        setInitialSheetData(initialSheetDataObj);
+        setSheetData(sheetDataObj);
+
+        // Select first sheet if available
+        if (transformedSheets.length > 0 && !selectedSheetId) {
+          setSelectedSheetId(transformedSheets[0].id);
         }
 
         setHasLoadedInitialData(true);
       } catch (error) {
-        console.error('Error loading files or counts:', error);
+        console.error('Error loading sheets from backend:', error);
+
+        // Fallback to sample data if backend fails
         const fallbackSheets = [
           {
-            id: 'sheet-1',
-            sheetName: 'financial-report.xlsx',
-            elements: [],
-            headerText: 'Financial Report',
+            id: 1,
+            sheetName: 'Sample Sheet 1',
+            headerText: 'Sample Sheet 1',
             elementCount: 0
           },
           {
-            id: 'sheet-2',
-            sheetName: 'sales-data.xlsx',
-            elements: [],
-            headerText: 'Sales Data',
-            elementCount: 0
-          },
-          {
-            id: 'sheet-3',
-            sheetName: 'inventory-list.xlsx',
-            elements: [],
-            headerText: 'Inventory List',
+            id: 2,
+            sheetName: 'Sample Sheet 2',
+            headerText: 'Sample Sheet 2',
             elementCount: 0
           }
         ];
 
         if (!savedState) {
           setSheets(fallbackSheets);
-          setAvailableSheetNames(fallbackSheets.map(s => s.sheetName));
 
           const fallbackInitialSheetData = {};
           const fallbackSheetData = {};
@@ -227,7 +217,7 @@ const ExcelDataCollector = () => {
       }
     };
 
-    loadExcelFilesAndCounts();
+    loadSheetsFromBackend();
   }, []);
 
   // Automatically load elements for all sheets when component mounts or when sheets are loaded
@@ -243,7 +233,7 @@ const ExcelDataCollector = () => {
         const hasLastLoaded = sheetData[sheet.id]?.lastLoaded;
 
         if (!hasData || !hasLastLoaded) {
-          console.log(`📥 Loading elements for sheet: ${sheet.sheetName}`);
+          console.log(`📥 Loading elements for sheet ID: ${sheet.id}`);
           await handleSheetSelect(sheet.id, false);
         } else {
           console.log(`✅ Sheet ${sheet.sheetName} already has data, skipping load`);
@@ -254,28 +244,8 @@ const ExcelDataCollector = () => {
     loadAllSheetsElements();
   }, [sheets, hasLoadedInitialData]);
 
-  // Automatically select and load the first sheet if we have a selectedSheetId
-  useEffect(() => {
-    const loadSelectedSheet = async () => {
-      if (selectedSheetId && sheets.length > 0) {
-        const sheet = sheets.find(s => s.id === selectedSheetId);
-        if (sheet) {
-          const hasData = sheetData[selectedSheetId]?.elements && sheetData[selectedSheetId]?.elements.length > 0;
-          const hasLastLoaded = sheetData[selectedSheetId]?.lastLoaded;
-
-          if (!hasData || !hasLastLoaded) {
-            console.log(`📥 Loading elements for selected sheet: ${sheet.sheetName}`);
-            await handleSheetSelect(selectedSheetId, false);
-          }
-        }
-      }
-    };
-
-    loadSelectedSheet();
-  }, [selectedSheetId, sheets]);
-
-  // ✅ REFRESH LOGIC: Clear localStorage and reload fresh data
-  const handleRefresh = () => {
+  // ✅ REFRESH LOGIC: Clear localStorage and reload fresh data from backend
+  const handleRefresh = async () => {
     // Clear localStorage
     localStorage.removeItem('excelCollectorState');
 
@@ -287,82 +257,61 @@ const ExcelDataCollector = () => {
     setSelectedSheetId(null);
     setHasLoadedInitialData(false);
 
-    // Trigger fresh data load (same as first visit)
-    const loadFreshData = async () => {
-      try {
-        setIsLoading(true);
-        const filesResponse = await api.get('/api/excel/files');
-        const fileNames = Array.isArray(filesResponse.data)
-          ? filesResponse.data.map(file => file.fileName).filter(Boolean)
-          : ['financial-report.xlsx', 'sales-data.xlsx', 'inventory-list.xlsx'];
+    try {
+      setIsLoading(true);
 
-        setAvailableSheetNames(fileNames);
+      // 1. Load all sheets from backend
+      const sheetsResponse = await api.get('/api/excel/sheets');
+      const backendSheets = Array.isArray(sheetsResponse.data) ? sheetsResponse.data : [];
 
-        const countsResponse = await api.get('/api/excel/all-counts');
-        const countsMap = countsResponse.data || {};
+      console.log('📊 Refreshed sheets from backend:', backendSheets);
 
-        console.log('🔢 Loaded element counts:', countsMap);
+      // Transform backend data to frontend format
+      const transformedSheets = backendSheets.map(sheet => ({
+        id: sheet.sheetId,
+        sheetName: sheet.excellSheetName,
+        headerText: sheet.excellSheetName,
+        elementCount: sheet.excelElements?.length || 0
+      }));
 
-        const initialSheets = fileNames.map((fileName, index) => ({
-          id: `sheet-${index}`,
-          sheetName: fileName,
+      setSheets(transformedSheets);
+
+      // Load element counts
+      const countsResponse = await api.get('/api/excel/all-counts');
+      const countsMap = countsResponse.data || {};
+      setSheetElementCounts(countsMap);
+
+      // Initialize fresh sheet data
+      const initialSheetDataObj = {};
+      const sheetDataObj = {};
+
+      transformedSheets.forEach(sheet => {
+        initialSheetDataObj[sheet.id] = {
           elements: [],
-          headerText: fileName.replace('.xlsx', '').split('-').map(word =>
-            word.charAt(0).toUpperCase() + word.slice(1)
-          ).join(' '),
-          elementCount: countsMap[fileName] || 0
-        }));
+          lastLoaded: null
+        };
+        sheetDataObj[sheet.id] = {
+          elements: [],
+          lastLoaded: null
+        };
+      });
 
-        setSheets(initialSheets);
-        setSheetElementCounts(countsMap);
+      setInitialSheetData(initialSheetDataObj);
+      setSheetData(sheetDataObj);
 
-        // Initialize fresh sheet data (no localStorage)
-        const initialSheetDataObj = {};
-        const sheetDataObj = {};
-        initialSheets.forEach(sheet => {
-          initialSheetDataObj[sheet.id] = { elements: [], lastLoaded: null };
-          sheetDataObj[sheet.id] = { elements: [], lastLoaded: null };
-        });
-        setInitialSheetData(initialSheetDataObj);
-        setSheetData(sheetDataObj);
-
-        if (initialSheets.length > 0) {
-          setSelectedSheetId(initialSheets[0].id);
-        }
-
-        setHasLoadedInitialData(true);
-        showAlert('success', 'Sheet list refreshed!');
-      } catch (error) {
-        console.error('Error refreshing data:', error);
-        // Use fallback sheets on error
-        const fallbackSheets = [
-          { id: 'sheet-1', sheetName: 'financial-report.xlsx', elements: [], headerText: 'Financial Report', elementCount: 0 },
-          { id: 'sheet-2', sheetName: 'sales-data.xlsx', elements: [], headerText: 'Sales Data', elementCount: 0 },
-          { id: 'sheet-3', sheetName: 'inventory-list.xlsx', elements: [], headerText: 'Inventory List', elementCount: 0 }
-        ];
-
-        setSheets(fallbackSheets);
-        setAvailableSheetNames(fallbackSheets.map(s => s.sheetName));
-
-        const fallbackInitialSheetData = {};
-        const fallbackSheetData = {};
-        fallbackSheets.forEach(sheet => {
-          fallbackInitialSheetData[sheet.id] = { elements: [], lastLoaded: null };
-          fallbackSheetData[sheet.id] = { elements: [], lastLoaded: null };
-        });
-        setInitialSheetData(fallbackInitialSheetData);
-        setSheetData(fallbackSheetData);
-
-        if (fallbackSheets.length > 0) {
-          setSelectedSheetId(fallbackSheets[0].id);
-        }
-        setHasLoadedInitialData(true);
-      } finally {
-        setIsLoading(false);
+      // Select first sheet if available
+      if (transformedSheets.length > 0) {
+        setSelectedSheetId(transformedSheets[0].id);
       }
-    };
 
-    loadFreshData();
+      setHasLoadedInitialData(true);
+      showAlert('success', 'Sheets refreshed successfully!');
+    } catch (error) {
+      console.error('Error refreshing sheets:', error);
+      showAlert('error', 'Failed to refresh sheets');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const refreshElementCounts = async () => {
@@ -378,15 +327,6 @@ const ExcelDataCollector = () => {
     } catch (error) {
       console.error('Error refreshing element counts:', error);
     }
-  };
-
-  const getElementCount = (sheetId) => {
-    const sheet = sheets.find(s => s.id === sheetId);
-    return sheet ? sheet.elementCount : 0;
-  };
-
-  const hasElements = (sheetId) => {
-    return getElementCount(sheetId) > 0;
   };
 
   const filteredSheets = useMemo(() => {
@@ -432,11 +372,12 @@ const ExcelDataCollector = () => {
       setLoadingSheetId(sheetId);
 
       try {
-        const response = await api.get(`/api/excel/elements?sheetName=${encodeURIComponent(sheet.sheetName)}`);
-        const predefinedElements = Array.isArray(response.data) ? response.data : [];
+        // Use the new endpoint to get elements by sheet ID
+        const response = await api.get(`/api/excel/sheets/${sheetId}/elements`);
+        const backendElements = Array.isArray(response.data) ? response.data : [];
 
-        const newElements = predefinedElements.map(el => ({
-          id: el.elementId || Date.now() + Math.random(),
+        const newElements = backendElements.map(el => ({
+          id: el.elementId, // REAL ID from backend
           elementName: el.excelElement || '',
           cellValue: el.exelCellValue || ''
         }));
@@ -457,24 +398,55 @@ const ExcelDataCollector = () => {
           }
         }));
 
-        console.log(`📥 Loaded ${newElements.length} elements for sheet: ${sheet.sheetName}`);
+        console.log(`📥 Loaded ${newElements.length} elements for sheet ID: ${sheetId}`);
       } catch (error) {
         console.error('Error loading elements:', error);
-        showAlert('error', 'Could not load Excel elements');
-        setSheetData(prev => ({
-          ...prev,
-          [sheetId]: {
-            elements: [],
-            lastLoaded: new Date().toISOString()
-          }
-        }));
-        setInitialSheetData(prev => ({
-          ...prev,
-          [sheetId]: {
-            elements: [],
-            lastLoaded: new Date().toISOString()
-          }
-        }));
+
+        // Fallback: try to get sheet data directly
+        try {
+          const sheetResponse = await api.get(`/api/excel/sheets/${sheetId}`);
+          const sheetDataResponse = sheetResponse.data;
+
+          const elementsFromSheet = sheetDataResponse.excelElements || [];
+          const newElements = elementsFromSheet.map(el => ({
+            id: el.elementId, // REAL ID from backend
+            elementName: el.excelElement || '',
+            cellValue: el.exelCellValue || ''
+          }));
+
+          setSheetData(prev => ({
+            ...prev,
+            [sheetId]: {
+              elements: newElements,
+              lastLoaded: new Date().toISOString()
+            }
+          }));
+
+          setInitialSheetData(prev => ({
+            ...prev,
+            [sheetId]: {
+              elements: JSON.parse(JSON.stringify(newElements)),
+              lastLoaded: new Date().toISOString()
+            }
+          }));
+        } catch (fallbackError) {
+          console.error('Fallback error loading sheet:', fallbackError);
+          showAlert('error', 'Could not load Excel elements');
+          setSheetData(prev => ({
+            ...prev,
+            [sheetId]: {
+              elements: [],
+              lastLoaded: new Date().toISOString()
+            }
+          }));
+          setInitialSheetData(prev => ({
+            ...prev,
+            [sheetId]: {
+              elements: [],
+              lastLoaded: new Date().toISOString()
+            }
+          }));
+        }
       } finally {
         setLoadingSheetId(null);
       }
@@ -489,7 +461,7 @@ const ExcelDataCollector = () => {
       [selectedSheetId]: {
         ...prev[selectedSheetId],
         elements: [{
-          id: Date.now() + Math.random(),
+          id: `temp-${Date.now()}-${Math.random()}`, // Temporary ID for frontend only
           elementName: '',
           cellValue: ''
         }, ...(prev[selectedSheetId]?.elements || [])]
@@ -500,7 +472,7 @@ const ExcelDataCollector = () => {
     setTimeout(() => setShowAddSuccess(false), 2000);
   };
 
-  const deleteElement = (elementId) => {
+  const deleteElement = async (elementId) => {
     if (!selectedSheetId) return;
 
     const currentElements = sheetData[selectedSheetId]?.elements || [];
@@ -515,15 +487,30 @@ const ExcelDataCollector = () => {
       confirmButtonText: 'Yes, delete it!',
       cancelButtonText: 'Cancel',
       reverseButtons: true,
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        setSheetData(prev => ({
-          ...prev,
-          [selectedSheetId]: {
-            ...prev[selectedSheetId],
-            elements: (prev[selectedSheetId]?.elements || []).filter(el => el.id !== elementId)
+        try {
+          // If element has a REAL ID (not temporary), delete from backend
+          if (elementId && typeof elementId === 'number') {
+            await api.delete(`/api/excel/elements/${elementId}`);
+            showAlert('success', 'Element deleted successfully!');
           }
-        }));
+
+          // Update local state
+          setSheetData(prev => ({
+            ...prev,
+            [selectedSheetId]: {
+              ...prev[selectedSheetId],
+              elements: (prev[selectedSheetId]?.elements || []).filter(el => el.id !== elementId)
+            }
+          }));
+
+          // Refresh element counts
+          refreshElementCounts();
+        } catch (error) {
+          console.error('Error deleting element:', error);
+          showAlert('error', 'Failed to delete element');
+        }
       }
     });
   };
@@ -631,27 +618,69 @@ const ExcelDataCollector = () => {
     const sheet = sheets.find(s => s.id === selectedSheetId);
     const currentElements = sheetData[selectedSheetId]?.elements || [];
 
-    const payload = [{
+    // Prepare payload for backend
+    // Send NULL for elementId if it's a temporary ID (starts with 'temp-')
+    const payload = {
       excellSheetName: sheet.sheetName,
       excelElements: currentElements.map(el => ({
+        elementId: el.id && typeof el.id === 'number' ? el.id : null,
         excelElement: el.elementName.trim(),
         exelCellValue: el.cellValue.trim()
       }))
-    }];
+    };
+
+    console.log('📤 Saving sheet with payload:', payload);
 
     try {
       setIsLoading(true);
-      const response = await api.post('/api/excel/save', payload);
+
+      // Use PUT to update the existing sheet
+      const response = await api.put(`/api/excel/sheets/${sheet.id}`, payload);
 
       if (response.data.success) {
-        await refreshElementCounts();
+        // Update local state with new sheet data from backend
+        const updatedSheetData = response.data.data;
+
+        // Get the updated elements from backend response
+        const updatedElements = (updatedSheetData.excelElements || []).map(el => ({
+          id: el.elementId, // REAL ID from backend
+          elementName: el.excelElement,
+          cellValue: el.exelCellValue
+        }));
+
+        console.log('✅ Backend returned updated elements with IDs:', updatedElements);
+
+        // Update sheets list
+        setSheets(prev => prev.map(s =>
+          s.id === sheet.id ? {
+            ...s,
+            sheetName: updatedSheetData.excellSheetName || s.sheetName,
+            headerText: updatedSheetData.excellSheetName || s.headerText,
+            elementCount: updatedElements.length
+          } : s
+        ));
+
+        // Update sheet data with REAL IDs from backend
+        setSheetData(prev => ({
+          ...prev,
+          [selectedSheetId]: {
+            elements: updatedElements,
+            lastLoaded: new Date().toISOString()
+          }
+        }));
 
         setInitialSheetData(prev => ({
           ...prev,
           [selectedSheetId]: {
-            elements: JSON.parse(JSON.stringify(currentElements)),
+            elements: JSON.parse(JSON.stringify(updatedElements)),
             lastLoaded: new Date().toISOString()
           }
+        }));
+
+        // Update element counts
+        setSheetElementCounts(prev => ({
+          ...prev,
+          [sheet.sheetName]: updatedElements.length
         }));
 
         Swal.fire({
@@ -711,7 +740,7 @@ const ExcelDataCollector = () => {
                 <button
                   onClick={handleRefresh}
                   className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
-                  title="Refresh sheet list from server"
+                  title="Refresh sheet list"
                   disabled={isLoading}
                 >
                   <RefreshCw size={20} className={`text-gray-600 ${isLoading ? 'animate-spin' : ''}`} />
