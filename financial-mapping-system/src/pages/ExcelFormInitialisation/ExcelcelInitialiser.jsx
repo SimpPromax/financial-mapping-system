@@ -456,15 +456,38 @@ const ExcelDataCollector = () => {
   const addNewElement = () => {
     if (!selectedSheetId) return;
 
+    const currentElements = sheetData[selectedSheetId]?.elements || [];
+
+    let nextCellValue = '';
+
+    if (currentElements.length > 0) {
+      const lastElement = currentElements[0]; // Topmost = most recently added
+      const lastValue = lastElement.cellValue?.trim();
+
+      // Regex to match Excel-style cell refs: letters + numbers (e.g., C12, AA100)
+      const match = lastValue.match(/^([A-Za-z]+)(\d+)$/);
+      if (match) {
+        const col = match[1]; // e.g., "C" or "AA"
+        const row = parseInt(match[2], 10); // e.g., 12
+
+        if (!isNaN(row) && row >= 1) {
+          nextCellValue = col.toUpperCase() + (row + 1); // e.g., C12 → C13
+        }
+      }
+    }
+
+    // Create new element with auto-incremented (or empty) cellValue
+    const newElement = {
+      id: `temp-${Date.now()}-${Math.random()}`,
+      elementName: '',
+      cellValue: nextCellValue // Could be '', 'C13', 'AA101', etc.
+    };
+
     setSheetData(prev => ({
       ...prev,
       [selectedSheetId]: {
         ...prev[selectedSheetId],
-        elements: [{
-          id: `temp-${Date.now()}-${Math.random()}`, // Temporary ID for frontend only
-          elementName: '',
-          cellValue: ''
-        }, ...(prev[selectedSheetId]?.elements || [])]
+        elements: [newElement, ...(prev[selectedSheetId]?.elements || [])]
       }
     }));
 
@@ -925,7 +948,7 @@ const ExcelDataCollector = () => {
                                 <input
                                   type="text"
                                   value={element.cellValue}
-                                  onChange={(e) => updateElement(element.id, 'cellValue', e.target.value)}
+                                  onChange={(e) => updateElement(element.id, 'cellValue', e.target.value.toUpperCase())}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                   placeholder="Cell Value"
                                   required
