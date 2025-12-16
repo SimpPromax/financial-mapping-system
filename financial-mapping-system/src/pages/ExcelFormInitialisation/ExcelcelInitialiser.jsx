@@ -1000,8 +1000,21 @@ const ExcelDataCollector = () => {
                       </div>
 
                       {showAddSuccess && (
-                        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-fadeIn z-50">
-                          ✅ New element added to the top!
+                        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md text-gray-800 px-6 py-3 rounded-2xl shadow-lg border border-gray-100/50 z-50 animate-bounce">
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <div className="absolute inset-0 bg-green-400/20 blur-sm rounded-full"></div>
+                              <div className="relative w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm text-gray-900">Element Added</p>
+                              <p className="text-xs text-gray-500">Successfully created at the top</p>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>

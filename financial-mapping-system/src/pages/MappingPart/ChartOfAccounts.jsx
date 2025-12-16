@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import api from "../../services/api";
-import { Plus, X, ChevronDown, ChevronUp, History, FileText, AlertCircle, Database, CheckCircle, XCircle, Calendar, Clock, User, Tag, Archive, ArchiveRestore, Search, RefreshCw, HelpCircle, ShieldAlert } from "lucide-react";
+import { Plus, X, ChevronDown, ChevronUp, History, FileText, AlertCircle, Database, CheckCircle, XCircle, Calendar, Clock, User, Tag, Archive, ArchiveRestore, Search, RefreshCw, HelpCircle, ShieldAlert, Grid, List, Layout } from "lucide-react";
 import Editor from "react-simple-code-editor";
 import { highlight, languages } from "prismjs/components/prism-core";
 import "prismjs/components/prism-sql";
@@ -11,9 +11,60 @@ import { useAuth } from '../../hooks/useAuth';
 
 // Constants
 const INITIAL_SQL = "-- Write SQL here\nSELECT * FROM table_name;";
-const DEFAULT_ITEMS_PER_PAGE = 6;
 const BATCH_SIZE = 5;
 const DEBOUNCE_DELAY = 300;
+
+// Card Size Configuration with items per page
+const CARD_SIZE_CONFIG = {
+  small: {
+    name: 'small',
+    icon: <List size={16} />,
+    height: '300px',
+    showSql: false,
+    showDescription: true,
+    showMetadata: false,
+    showFullMetadata: false,
+    gridCols: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+    textSize: 'text-sm',
+    padding: 'p-4',
+    sqlHeight: '0px',
+    titleSize: 'text-xl',
+    compact: true,
+    itemsPerPage: 12
+  },
+  medium: {
+    name: 'medium',
+    icon: <Layout size={16} />,
+    height: '400px',
+    showSql: true,
+    showDescription: true,
+    showMetadata: true,
+    showFullMetadata: false,
+    gridCols: 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3',
+    textSize: 'text-base',
+    padding: 'p-5',
+    sqlHeight: '100px',
+    titleSize: 'text-2xl',
+    compact: false,
+    itemsPerPage: 6
+  },
+  large: {
+    name: 'large',
+    icon: <Grid size={16} />,
+    height: '550px',
+    showSql: true,
+    showDescription: true,
+    showMetadata: true,
+    showFullMetadata: true,
+    gridCols: 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3',
+    textSize: 'text-lg',
+    padding: 'p-6',
+    sqlHeight: '180px',
+    titleSize: 'text-2xl',
+    compact: false,
+    itemsPerPage: 6
+  }
+};
 
 // Common SQL placeholders
 const SQL_PLACEHOLDERS = {
@@ -173,8 +224,17 @@ const ChartOfAccounts = () => {
   const [archivedSearchQuery, setArchivedSearchQuery] = useState("");
   const [showDivisionSafetyHelp, setShowDivisionSafetyHelp] = useState(false);
   const [divisionSafetyIssues, setDivisionSafetyIssues] = useState([]);
+  const [cardSize, setCardSize] = useState(() => {
+    const saved = localStorage.getItem('coaCardSize');
+    return saved || 'large';
+  });
   const cardsContainerRef = useRef(null);
   const validationTimeoutsRef = useRef({});
+
+  // Get current items per page based on card size
+  const getItemsPerPage = () => {
+    return CARD_SIZE_CONFIG[cardSize].itemsPerPage;
+  };
 
   // Fetch active COAs
   const fetchCOAs = useCallback(async () => {
@@ -213,6 +273,16 @@ const ChartOfAccounts = () => {
     fetchCOAs();
     fetchArchivedCOAs();
   }, [fetchCOAs, fetchArchivedCOAs]);
+
+  // Card size handler
+  const handleCardSizeChange = useCallback((size) => {
+    setCardSize(size);
+    localStorage.setItem('coaCardSize', size);
+    // Reset expanded cards when changing size
+    setExpandedCards({});
+    // Reset to first page when changing card size
+    setCurrentPage(1);
+  }, []);
 
   // ✅ CORRECTED: checkDivisionSafety
   const checkDivisionSafety = useCallback((sql) => {
@@ -894,21 +964,24 @@ const ChartOfAccounts = () => {
     (c.coaName || "").toLowerCase().includes(archivedSearchQuery.toLowerCase())
   );
 
-  const totalPages = Math.max(1, Math.ceil(filteredCoas.length / DEFAULT_ITEMS_PER_PAGE));
+  // Calculate pagination based on current card size
+  const itemsPerPage = getItemsPerPage();
+  const totalPages = Math.max(1, Math.ceil(filteredCoas.length / itemsPerPage));
   const paginatedCoas = filteredCoas.slice(
-    (currentPage - 1) * DEFAULT_ITEMS_PER_PAGE,
-    currentPage * DEFAULT_ITEMS_PER_PAGE
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
-  const totalArchivedPages = Math.max(1, Math.ceil(filteredArchivedCoas.length / DEFAULT_ITEMS_PER_PAGE));
+  const totalArchivedPages = Math.max(1, Math.ceil(filteredArchivedCoas.length / itemsPerPage));
   const paginatedArchivedCoas = filteredArchivedCoas.slice(
-    (currentPage - 1) * DEFAULT_ITEMS_PER_PAGE,
-    currentPage * DEFAULT_ITEMS_PER_PAGE
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
+  // Update current page when card size changes or filtered results change
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(1);
-  }, [filteredCoas.length, totalPages, currentPage]);
+  }, [filteredCoas.length, totalPages, currentPage, itemsPerPage]);
 
   const validateSQL = async () => {
     const trimmedSQL = sqlScript.trim();
@@ -1035,6 +1108,207 @@ const ChartOfAccounts = () => {
     }
   };
 
+  // Render COA Card based on size
+  const renderCOACard = (c, idx, isArchived = false) => {
+    const sizeConfig = CARD_SIZE_CONFIG[cardSize];
+
+    if (isArchived) {
+      // Archived cards have a simpler design
+      return (
+        <div
+          key={c.coaId || idx}
+          className="bg-white rounded-xl shadow border border-gray-200 flex flex-col transition-all duration-300 hover:shadow-md h-[500px] max-h-[500px] overflow-hidden"
+        >
+          <div className="p-6 flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex justify-between items-start gap-4 mb-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-2xl font-extrabold text-gray-700 wrap-break-word">{c.coaCode}</p>
+                  <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full">
+                    <Archive size={12} className="inline mr-1" />
+                    Archived
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500 mt-1 wrap-break-word">{c.coaName}</p>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <p className="text-gray-600 wrap-break-word text-sm">
+                <span className="font-bold">Description:</span> {c.description || "No description provided."}
+              </p>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-gray-500 mb-1">SQL</p>
+                <div className="bg-gray-800 border border-gray-800 rounded-lg overflow-auto min-h-[120px] max-h-[180px]">
+                  <pre className="p-3 text-xs text-emerald-200 font-mono whitespace-pre-wrap">
+                    <code>{c.sqlScript}</code>
+                  </pre>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-xs text-gray-500">
+                <div>
+                  <span className="font-semibold">Archived by:</span> {c.archivedByName || c.archivedBy || "N/A"}
+                </div>
+                <div>
+                  <span className="font-semibold">Archived on:</span> {formatDate(c.archivedDate)}
+                </div>
+                <div>
+                  <span className="font-semibold">Created by:</span> {c.createdByName || c.createdBy || "N/A"}
+                </div>
+                <div>
+                  <span className="font-semibold">Created on:</span> {formatDate(c.createdDate)}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="p-6 pt-0 mt-auto border-t border-gray-100">
+            <div className="mt-4 flex justify-between gap-2 pt-4">
+              <button
+                onClick={() => handleRestoreCOA(c.coaId, c.coaCode)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2 flex-1 justify-center"
+              >
+                <ArchiveRestore size={16} /> Restore
+              </button>
+              <button
+                onClick={() => fetchVersionHistory(c.coaId)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center gap-2"
+              >
+                <History size={16} /> History
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Active COA cards with size variations
+    return (
+      <div
+        key={c.coaId || idx}
+        className={`bg-white rounded-xl shadow-lg border border-gray-200 flex flex-col transition-all duration-300 hover:shadow-xl h-[${sizeConfig.height}] max-h-[${sizeConfig.height}] overflow-hidden`}
+      >
+        <div className={`${sizeConfig.padding} flex-1 flex flex-col min-h-0 overflow-hidden`}>
+          {/* Card Header */}
+          <div className="flex justify-between items-start gap-4 mb-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <p className={`${sizeConfig.titleSize} font-extrabold text-blue-800 wrap-break-word`}>
+                  {c.coaCode}
+                </p>
+                {coaValidationStatus[c.coaId] !== undefined && (
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold ${coaValidationStatus[c.coaId] ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                    {coaValidationStatus[c.coaId] ? (
+                      <>
+                        <CheckCircle size={12} /> Valid
+                      </>
+                    ) : (
+                      <>
+                        <XCircle size={12} /> Invalid
+                      </>
+                    )}
+                  </span>
+                )}
+              </div>
+              <p className={`${sizeConfig.textSize === 'text-sm' ? 'text-xs' : 'text-sm'} text-gray-500 mt-1 wrap-break-word`}>
+                {c.coaName}
+              </p>
+            </div>
+            {/* Only show expand button in medium/large sizes when SQL is shown */}
+            {sizeConfig.showSql && (
+              <button
+                onClick={() => toggleCardExpansion(c.coaId)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-expanded={expandedCards[c.coaId]}
+                aria-label={expandedCards[c.coaId] ? "Collapse details" : "Expand details"}
+              >
+                {expandedCards[c.coaId] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </button>
+            )}
+          </div>
+
+          {/* Card Content */}
+          <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            {/* Description - Show in all sizes */}
+            {sizeConfig.showDescription && (
+              <div className="transition-all duration-300">
+                <p className={`text-gray-600 wrap-break-word ${sizeConfig.textSize === 'text-sm' ? 'text-xs' : 'text-sm'}`}>
+                  <span className="font-bold">Description:</span> {c.description || "No description provided."}
+                </p>
+              </div>
+            )}
+
+            {/* SQL Section - Only show in medium/large sizes */}
+            {sizeConfig.showSql && (
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-xs font-semibold text-gray-500">SQL</p>
+                  <button
+                    onClick={() => fetchVersionHistory(c.coaId)}
+                    className="text-xs text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1"
+                    aria-label="View version history"
+                  >
+                    <History size={12} /> History
+                  </button>
+                </div>
+                <div
+                  className={`flex-1 bg-gray-800 border border-gray-800 rounded-lg overflow-auto min-h-[${sizeConfig.sqlHeight}] ${expandedCards[c.coaId] ? 'max-h-[400px]' : `max-h-[${sizeConfig.sqlHeight}]`}`}
+                >
+                  <pre className="p-4 text-sm text-emerald-200 font-mono whitespace-pre-wrap wrap-break-word">
+                    <code>{c.sqlScript}</code>
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Metadata - Show in medium/large sizes */}
+            {sizeConfig.showMetadata && (
+              <div className="pt-2 border-t border-gray-100">
+                <p className="text-right text-xs text-gray-400">
+                  Created by: {c.createdByName || c.createdBy || "N/A"}
+                  {c.modifiedByName && sizeConfig.showFullMetadata && (
+                    <span className="ml-2">| Modified by: {c.modifiedByName}</span>
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Card Footer - Show in all sizes */}
+        <div className={`${sizeConfig.padding} pt-0 mt-auto border-t border-gray-100`}>
+          <div className={`mt-4 flex ${sizeConfig.compact ? 'justify-between gap-1' : 'justify-between gap-2'} pt-4`}>
+            <button
+              onClick={() => {
+                setEditingCoa(c);
+                setCoaCode(c.coaCode || "");
+                setCoaName(c.coaName || "");
+                setDescription(c.description || "");
+                setSqlScript(c.sqlScript || INITIAL_SQL);
+                setFormVisible(true);
+              }}
+              className={`${sizeConfig.compact ? 'px-3 py-1.5 text-sm' : 'px-4 py-2'} bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition flex items-center gap-2`}
+            >
+              <FileText size={sizeConfig.compact ? 14 : 16} /> {sizeConfig.compact ? 'Edit' : 'Edit'}
+            </button>
+            <button
+              onClick={() => handleArchiveCOA(c)}
+              className={`${sizeConfig.compact ? 'px-3 py-1.5 text-sm' : 'px-4 py-2'} bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition flex items-center gap-2`}
+            >
+              <Archive size={sizeConfig.compact ? 14 : 16} /> {sizeConfig.compact ? 'Archive' : 'Archive'}
+            </button>
+            {!sizeConfig.compact && (
+              <button
+                onClick={() => fetchVersionHistory(c.coaId)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition flex items-center gap-2"
+              >
+                <History size={16} /> History
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col min-h-screen w-full bg-white relative">
       {/* Header */}
@@ -1064,6 +1338,26 @@ const ChartOfAccounts = () => {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Card Size Toggle */}
+          <div className="flex items-center mr-4">
+            <span className="text-sm text-gray-500 mr-2 hidden md:inline">View:</span>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              {Object.values(CARD_SIZE_CONFIG).map((size) => (
+                <button
+                  key={size.name}
+                  onClick={() => handleCardSizeChange(size.name)}
+                  className={`px-3 py-1.5 text-xs rounded-md transition flex items-center gap-1 ${cardSize === size.name
+                    ? 'bg-white shadow text-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'}`}
+                  title={`${size.name.charAt(0).toUpperCase() + size.name.slice(1)} view (${size.itemsPerPage} per page)`}
+                >
+                  {size.icon}
+                  <span className="hidden sm:inline">{size.name}</span>
+                  <span className="text-xs opacity-70 ml-1">({size.itemsPerPage})</span>
+                </button>
+              ))}
+            </div>
+          </div>
           <button
             onClick={handleRefresh}
             className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition flex items-center gap-1"
@@ -1071,7 +1365,7 @@ const ChartOfAccounts = () => {
             disabled={fetchingCOAs || fetchingArchived}
           >
             <RefreshCw size={16} />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </button>
           <button
             onClick={() => { resetForm(); setFormVisible(true); }}
@@ -1079,7 +1373,7 @@ const ChartOfAccounts = () => {
             aria-label="Add new Chart of Account"
             disabled={fetchingCOAs}
           >
-            <Plus size={16} /> <span>Add New COA</span>
+            <Plus size={16} /> <span className="hidden sm:inline">Add New COA</span>
           </button>
         </div>
       </div>
@@ -1100,8 +1394,8 @@ const ChartOfAccounts = () => {
               </h3>
               <p className="text-sm text-gray-600 mt-1">
                 {showArchived
-                  ? `Viewing ${filteredArchivedCoas.length} archived COAs`
-                  : `Viewing ${filteredCoas.length} active COAs`}
+                  ? `Viewing ${filteredArchivedCoas.length} archived COAs in ${cardSize} view (${itemsPerPage} per page)`
+                  : `Viewing ${filteredCoas.length} active COAs in ${cardSize} view (${itemsPerPage} per page)`}
               </p>
             </div>
             {/* Right side: Pill-shaped Navigation Tabs */}
@@ -1216,11 +1510,11 @@ const ChartOfAccounts = () => {
             <div className="ml-4">
               {showArchived ? (
                 <span className="text-sm text-gray-500">
-                  {filteredArchivedCoas.length} of {archivedList.length} archived COAs
+                  Page {currentPage} of {totalArchivedPages} • {filteredArchivedCoas.length} of {archivedList.length} archived COAs
                 </span>
               ) : (
                 <span className="text-sm text-gray-500">
-                  {filteredCoas.length} of {coaList.length} active COAs
+                  Page {currentPage} of {totalPages} • {filteredCoas.length} of {coaList.length} active COAs
                 </span>
               )}
             </div>
@@ -1268,100 +1562,8 @@ const ChartOfAccounts = () => {
                       </button>
                     </div>
                   )}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-20" ref={cardsContainerRef}>
-                    {paginatedCoas.map((c, idx) => (
-                      <div
-                        key={c.coaId || idx}
-                        className="bg-white rounded-xl shadow-lg border border-gray-200 flex flex-col transition-all duration-300 hover:shadow-xl h-[550px] max-h-[550px] overflow-hidden"
-                      >
-                        <div className="p-6 flex-1 flex flex-col min-h-0 overflow-hidden">
-                          <div className="flex justify-between items-start gap-4 mb-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="text-2xl font-extrabold text-blue-800 wrap-break-word">{c.coaCode}</p>
-                                {coaValidationStatus[c.coaId] !== undefined && (
-                                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold ${coaValidationStatus[c.coaId] ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                                    {coaValidationStatus[c.coaId] ? (
-                                      <>
-                                        <CheckCircle size={12} /> Valid
-                                      </>
-                                    ) : (
-                                      <>
-                                        <XCircle size={12} /> Invalid
-                                      </>
-                                    )}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-500 mt-1 wrap-break-word">{c.coaName}</p>
-                            </div>
-                            <button
-                              onClick={() => toggleCardExpansion(c.coaId)}
-                              className="text-gray-400 hover:text-gray-600 transition-colors"
-                              aria-expanded={expandedCards[c.coaId]}
-                              aria-label={expandedCards[c.coaId] ? "Collapse details" : "Expand details"}
-                            >
-                              {expandedCards[c.coaId] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                            </button>
-                          </div>
-                          <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                            <div className="transition-all duration-300">
-                              <p className="text-gray-600 wrap-break-word text-sm">
-                                <span className="font-bold">Description:</span> {c.description || "No description provided."}
-                              </p>
-                            </div>
-                            <div className="flex-1 flex flex-col min-h-0">
-                              <div className="flex justify-between items-center mb-1">
-                                <p className="text-xs font-semibold text-gray-500">SQL</p>
-                                <button
-                                  onClick={() => fetchVersionHistory(c.coaId)}
-                                  className="text-xs text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1"
-                                  aria-label="View version history"
-                                >
-                                  <History size={12} /> History
-                                </button>
-                              </div>
-                              <div className="flex-1 min-h-[180px] max-h-[250px] bg-gray-800 border border-gray-800 rounded-lg overflow-auto">
-                                <pre className="p-4 text-sm text-emerald-200 font-mono whitespace-pre-wrap wrap-break-word">
-                                  <code>{c.sqlScript}</code>
-                                </pre>
-                              </div>
-                            </div>
-                            <div className="pt-2 border-t border-gray-100">
-                              <p className="text-right text-xs text-gray-400">
-                                Created by: {c.createdByName || c.createdBy || "N/A"}
-                                {c.modifiedByName && (
-                                  <span className="ml-2">| Modified by: {c.modifiedByName}</span>
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-6 pt-0 mt-auto border-t border-gray-100">
-                          <div className="mt-4 flex justify-between gap-2 pt-4">
-                            <button
-                              onClick={() => {
-                                setEditingCoa(c);
-                                setCoaCode(c.coaCode || "");
-                                setCoaName(c.coaName || "");
-                                setDescription(c.description || "");
-                                setSqlScript(c.sqlScript || INITIAL_SQL);
-                                setFormVisible(true);
-                              }}
-                              className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition flex items-center gap-2"
-                            >
-                              <FileText size={16} /> Edit
-                            </button>
-                            <button
-                              onClick={() => handleArchiveCOA(c)}
-                              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition flex items-center gap-2"
-                            >
-                              <Archive size={16} /> Archive
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className={`grid ${CARD_SIZE_CONFIG[cardSize].gridCols} gap-6 pb-20`} ref={cardsContainerRef}>
+                    {paginatedCoas.map((c, idx) => renderCOACard(c, idx, false))}
                   </div>
                   {totalPages > 1 && (
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40">
@@ -1441,70 +1643,7 @@ const ChartOfAccounts = () => {
                     </div>
                   )}
                   <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
-                    {paginatedArchivedCoas.map((c, idx) => (
-                      <div
-                        key={c.coaId || idx}
-                        className="bg-white rounded-xl shadow border border-gray-200 flex flex-col transition-all duration-300 hover:shadow-md h-[500px] max-h-[500px] overflow-hidden"
-                      >
-                        <div className="p-6 flex-1 flex flex-col min-h-0 overflow-hidden">
-                          <div className="flex justify-between items-start gap-4 mb-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="text-2xl font-extrabold text-gray-700 wrap-break-word">{c.coaCode}</p>
-                                <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full">
-                                  <Archive size={12} className="inline mr-1" />
-                                  Archived
-                                </span>
-                              </div>
-                              <p className="text-sm text-gray-500 mt-1 wrap-break-word">{c.coaName}</p>
-                            </div>
-                          </div>
-                          <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                            <p className="text-gray-600 wrap-break-word text-sm">
-                              <span className="font-bold">Description:</span> {c.description || "No description provided."}
-                            </p>
-                            <div className="flex-1">
-                              <p className="text-xs font-semibold text-gray-500 mb-1">SQL</p>
-                              <div className="bg-gray-800 border border-gray-800 rounded-lg overflow-auto min-h-[120px] max-h-[180px]">
-                                <pre className="p-3 text-xs text-emerald-200 font-mono whitespace-pre-wrap">
-                                  <code>{c.sqlScript}</code>
-                                </pre>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 text-xs text-gray-500">
-                              <div>
-                                <span className="font-semibold">Archived by:</span> {c.archivedByName || c.archivedBy || "N/A"}
-                              </div>
-                              <div>
-                                <span className="font-semibold">Archived on:</span> {formatDate(c.archivedDate)}
-                              </div>
-                              <div>
-                                <span className="font-semibold">Created by:</span> {c.createdByName || c.createdBy || "N/A"}
-                              </div>
-                              <div>
-                                <span className="font-semibold">Created on:</span> {formatDate(c.createdDate)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-6 pt-0 mt-auto border-t border-gray-100">
-                          <div className="mt-4 flex justify-between gap-2 pt-4">
-                            <button
-                              onClick={() => handleRestoreCOA(c.coaId, c.coaCode)}
-                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2 flex-1 justify-center"
-                            >
-                              <ArchiveRestore size={16} /> Restore
-                            </button>
-                            <button
-                              onClick={() => fetchVersionHistory(c.coaId)}
-                              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center gap-2"
-                            >
-                              <History size={16} /> History
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                    {paginatedArchivedCoas.map((c, idx) => renderCOACard(c, idx, true))}
                   </div>
                   {totalArchivedPages > 1 && (
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40">
